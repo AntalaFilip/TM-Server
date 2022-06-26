@@ -1,5 +1,4 @@
 import { Response } from "express";
-import { checkType } from "../../helpers/typeof";
 import { TMRequest } from "../../middleware/httpauth";
 import Client from "../../types/client";
 import User from "../../types/user";
