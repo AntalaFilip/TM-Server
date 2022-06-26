@@ -2,12 +2,23 @@ import Express from 'express';
 import http from 'http';
 import { createSIOServer } from './helpers/sio';
 import { config as env } from 'dotenv';
-import { join } from 'path';
+import Client from './types/client';
 env();
 
-const app = Express();
-// TODO: add config for custom port
-const server = http.createServer(app).listen(3018);
+async function main() {
+	const app = Express();
+	const server = http.createServer(app);
 
-// Make a new Socket.IO Server instance and bind it to the HTTP server
-const io = createSIOServer(server);
+	// Make a new Socket.IO Server instance and bind it to the HTTP server
+	const io = createSIOServer(server);
+
+	console.log('Setting up backend...');
+	// This really should not be called a Client, but whatever...
+	const client = new Client({ express: app, http: server, io });
+
+	await client.ready;
+
+	server.listen(process.env.PORT ?? 3018, () => console.log('Server listening!'));
+}
+
+main();
