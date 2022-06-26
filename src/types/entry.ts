@@ -1,6 +1,5 @@
 import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
-import TrainSet from "./trainset";
 
 type ArrDepSet = {
 	arrival: Date,
@@ -11,13 +10,14 @@ interface TimetableEntryOptions extends ResourceOptions {
 	trainId: string,
 	stationId: string,
 	trackId: string,
-	sets?: TrainSet[],
+	setIds?: string[],
 	locomotiveId: string,
 	start: Date,
 	repeats: number,
 	duration: number,
 	usedFrom?: Date,
 	usedTill?: Date,
+	current?: ArrDepSet,
 }
 
 class TimetableEntry extends Resource {
@@ -48,7 +48,8 @@ class TimetableEntry extends Resource {
 	}
 	public get track() { return this.station.tracks.get(this.trackId) };
 
-	public readonly sets: TrainSet[];
+	public readonly setIds: string[];
+	public get sets() { return this.setIds.map(id => this.realm.trainSetManager.get(id)) };
 
 	private _locomotiveId: string;
 	public get locomotiveId() { return this._locomotiveId };
@@ -94,6 +95,12 @@ class TimetableEntry extends Resource {
 	}
 
 	public readonly times: ArrDepSet[];
+	private _current: ArrDepSet;
+	public get current() { return this._current };
+	private set current(set: ArrDepSet) {
+		this._current = set;
+		this.propertyChange(`current`, set);
+	}
 
 	constructor(options: TimetableEntryOptions) {
 		super(`timetableentry`, options);
@@ -108,13 +115,20 @@ class TimetableEntry extends Resource {
 		this._usedFrom = options.usedFrom;
 		this._usedTill = options.usedTill;
 
-		this.sets = options.sets ?? new Array();
+		this.setIds = options.setIds ?? new Array();
 		this.times = new Array();
 
 		this.regenerate();
+
+		// if there's nothing passed, assume that we want the next possible entry (index 0 is one before)
+		this._current = options.current ?? this.times[1];
 	}
 
-	private regenerate() {
+	/**
+	 * Clears and regenerates ArrDepSets (this.times) according to current properties -- use with caution
+	 * @returns
+	 */
+	regenerate() {
 		this.times.length = 0;
 		const count = this.timetable.genCount;
 		const firstArr = this.findNextTime();
@@ -132,6 +146,20 @@ class TimetableEntry extends Resource {
 		return this.times.length;
 	}
 
+	/**
+	 * Clears current and pushes new TrainSet IDs
+	 * @param setIds an array of IDs of the new sets
+	 */
+	newSets(setIds: string[]) {
+		this.setIds.length = 0;
+		this.setIds.push(...setIds);
+		this.propertyChange(`setIds`, setIds);
+	}
+
+	/**
+	 * Finds the next closest arrival time for this entry
+	 * @returns closest arrival time in epoch milliseconds
+	 */
 	private findNextTime(): number {
 		const now = this.realm.timeManager.trueMs;
 		// the time passed from the start
@@ -146,6 +174,11 @@ class TimetableEntry extends Resource {
 		return this.start.getTime() + (this.repeats * repeats);
 	}
 
+	/**
+	 * Generates a new ArrDepSet relative to the last one (falls back to TimetableEntry::findNextTime), pushes it to the array and removes the first (last) entry
+	 * @param shift whether to clear the first entry, def: true
+	 * @returns the new ArrDepSet
+	 */
 	genNewTime(shift = true) {
 		if (shift) this.times.shift();
 
@@ -174,6 +207,8 @@ class TimetableEntry extends Resource {
 			trainId: this.trainId,
 			usedFrom: this.usedFrom,
 			usedTill: this.usedTill,
+			setIds: this.sets.map(s => s.id),
+			current: this.current,
 		};
 	}
 
