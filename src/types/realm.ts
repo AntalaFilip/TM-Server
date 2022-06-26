@@ -8,6 +8,7 @@ import TrainManager from "../managers/TrainManager";
 import TrainSetManager from "../managers/TrainSetManager";
 import Client from "./client";
 import Resource, { ResourceOptions } from "./resource";
+import Timetable from "./timetable";
 import User from "./user";
 
 interface RealmOptions extends ResourceOptions {
@@ -75,6 +76,17 @@ class Realm extends Resource {
 				await this.movableManager.ready;
 				await this.timetableManager.ready;
 
+				if (this.activeTimetable) {
+					try {
+						const c = this.activeTimetable.runChecks();
+						if (!c) throw new Error('invalid timetable');
+					}
+					catch (err) {
+						this._activeTimetableId = null;
+						// TODO: notify
+					}
+				}
+
 				await this.save();
 
 				console.log(`Realm (${this.id}) ready!`);
@@ -84,6 +96,13 @@ class Realm extends Resource {
 				rej(err);
 			}
 		});
+	}
+
+	setActiveTimetable(timetable: Timetable) {
+		if (!timetable.runChecks()) return false;
+
+		this.activeTimetableId = timetable.id;
+		return true;
 	}
 
 	metadata(): RealmOptions {
