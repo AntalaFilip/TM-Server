@@ -183,13 +183,14 @@ class TimetableEntry extends Resource {
 		if (shift) this.times.shift();
 
 		const last = this.times[this.times.length - 1];
-		const arrival = new Date(last.arrival.getTime() + this.repeats);
+		const arrival = new Date((last?.arrival.getTime() ?? this.findNextTime()) + this.repeats);
 		const departure = new Date(arrival.getTime() + this.duration);
 
 		const set: ArrDepSet = {
 			arrival,
 			departure,
 		};
+		this.times.push(set);
 		return set;
 	}
 
