@@ -55,7 +55,7 @@ class Train extends Resource {
 		this.propertyChange(`state`, newState, true);
 	}
 
-	public get allEntries() { return Array.from(this.realm.activeTimetable.entries.filter(e => e.train === this).values()).sort((a, b) => a.start.getTime() - b.start.getTime()); }
+	public get allEntries() { return Array.from(this.realm.activeTimetable?.entries.filter(e => e.train === this).values() ?? []).sort((a, b) => a.start.getTime() - b.start.getTime()); }
 
 	private _currentEntryId: string;
 	public get currentEntryId() { return this._currentEntryId; }
@@ -67,6 +67,8 @@ class Train extends Resource {
 	}
 	public get currentEntry() { return this.allEntries?.find(e => e.id === this.currentEntryId); }
 
+	public get nextEntry() { return this.allEntries[this.allEntries.indexOf(this.currentEntry) + 1] ?? this.allEntries[0]; }
+
 	constructor(options: TrainOptions) {
 		super('train', options);
 
@@ -77,10 +79,6 @@ class Train extends Resource {
 		this.trainSets = options.trainSets ?? [];
 		this._state = options.state ?? `MISSING`;
 		this._location = options.location;
-	}
-
-	nextEntry() {
-		return this.allEntries[this.allEntries.indexOf(this.currentEntry) + 1] ?? this.allEntries[0];
 	}
 
 	async newTrainSets(sets: TrainSet[]) {
