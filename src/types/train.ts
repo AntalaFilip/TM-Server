@@ -69,6 +69,8 @@ class Train extends Resource {
 
 	public get nextEntry() { return this.allEntries[this.allEntries.indexOf(this.currentEntry) + 1] ?? this.allEntries[0]; }
 
+	public get arrDepSet() { return this.currentEntry?.current }
+
 	constructor(options: TrainOptions) {
 		super('train', options);
 
@@ -79,6 +81,42 @@ class Train extends Resource {
 		this.trainSets = options.trainSets ?? [];
 		this._state = options.state ?? `MISSING`;
 		this._location = options.location;
+	}
+
+	updateTrainState(newState: TrainState, override = false) {
+		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
+		const prevState = this.state;
+		// TODO: autoskipping and stuff
+		if (newState === prevState) return;
+		if (newState === 'MOVING') {
+			this.location = null;
+			if (prevState != 'MISSING') {
+				this.currentEntry.genNewTime();
+				this.currentEntryId = this.nextEntry?.id;
+			}
+		}
+		else if (newState === 'ARRIVED') {
+			this.location = this.currentEntry.station;
+		}
+		else if (newState === 'READY') {
+			this.runStateChecks(override);
+		}
+		else if (newState === 'LEAVING') {
+			if (prevState != 'READY') this.runStateChecks(override);
+		}
+		else if (newState === 'MISSING') {
+			this.location = null;
+		}
+
+		this.state = newState;
+	}
+
+	public runStateChecks(override = false) {
+		// TODO: create nice errors
+		if (this.trainSets != this.currentEntry.sets && !override) throw new Error(`Train sets do not match!`);
+		if (this.locomotive != this.currentEntry.locomotive && !override) throw new Error(`Locomotives don't match!`);
+
+		return true;
 	}
 
 	async newTrainSets(sets: TrainSet[]) {
