@@ -14,26 +14,28 @@ class UserManager extends BaseManager implements ResourceData {
 		super(`users`, client.io, client);
 		this.users = new Collection();
 
-		this.ready = new Promise(async (res) => {
-			await this.createAllFromStore();
-			if (this.users.size === 0) {
-				console.warn(`UserManager attempted to load with no users available!`);
-				console.warn(`Automatically creating new user...`);
-				const pwd = crypto.randomBytes(8).toString('hex');
+		this.ready = new Promise((res) => {
+			this.createAllFromStore()
+				.then(async () => {
+					if (this.users.size === 0) {
+						console.warn(`UserManager attempted to load with no users available!`);
+						console.warn(`Automatically creating new user...`);
+						const pwd = crypto.randomBytes(8).toString('hex');
 
-				const user = await this.create({
-					name: 'Administrator',
-					username: 'administrator',
-					realmId: null,
-					managerId: this.id,
-					passwordHash: User.hashPassword(pwd),
-					admin: true,
+						const user = await this.create({
+							name: 'Administrator',
+							username: 'administrator',
+							realmId: null,
+							managerId: this.id,
+							passwordHash: User.hashPassword(pwd),
+							admin: true,
+						});
+						console.warn(`Created new administrative user '${user.username}' with password '${pwd}'`);
+					}
+
+					console.log(`UserManager ready; ${this.users.size} users loaded, ${this.users.filter(u => !u.disabled).size} users active`);
+					res();
 				});
-				console.warn(`Created new administrative user '${user.username}' with password '${pwd}'`);
-			}
-
-			console.log(`UserManager ready; ${this.users.size} users loaded, ${this.users.filter(u => !u.disabled).size} users active`);
-			return res();
 		});
 	}
 
@@ -69,7 +71,7 @@ class UserManager extends BaseManager implements ResourceData {
 				await this.create(v);
 			}
 			catch (err) {
-				console.warn(`Malformed user data @ ${r[0]}`)
+				console.warn(`Malformed user data @ ${r[0]}`);
 			}
 		}
 

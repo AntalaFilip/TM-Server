@@ -21,19 +21,19 @@ class Redis {
 		this.redis = redis;
 	}
 
-	async add(key: string, data: any): Promise<boolean> {
+	async add(key: string, data: object | number | string | Buffer): Promise<boolean> {
 		if (typeof data === 'object') data = JSON.stringify(data);
 
 		return (await this.redis.set(`${this.name}:${key}`, data)) === 'OK';
 	}
 
-	async get(key: string): Promise<any> {
+	async get(key: string): Promise<unknown> {
 		const data = await this.redis.get(key);
 		try {
 			return JSON.parse(data);
 		}
 		catch {
-			if (Number(data) != NaN) return Number(data);
+			if (!Number.isNaN(data)) return Number(data);
 
 			return data;
 		}

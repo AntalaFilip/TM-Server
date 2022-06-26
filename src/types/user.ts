@@ -18,7 +18,7 @@ interface UserOptions extends ResourceOptions {
 interface UserPermissions {
 	global: number,
 	readonly realm: Map<string, number>,
-};
+}
 
 interface UserPermissionsMetadata {
 	global: number,
@@ -43,36 +43,36 @@ interface UserSettings {
 
 class User extends Resource {
 	private _name: string;
-	public get name() { return this._name };
+	public get name() { return this._name; }
 	private set name(newName: string) {
 		this._name = newName;
 		this.propertyChange('name', this.name);
-	};
+	}
 
 	private _username: string;
-	public get username() { return this._username };
+	public get username() { return this._username; }
 	private set username(username: string) {
 		this._username = username;
 		this.propertyChange('username', this.username);
 	}
 
 	private _passwordHash: string;
-	private get passwordHash() { return this._passwordHash };
+	private get passwordHash() { return this._passwordHash; }
 	private set passwordHash(hash: string) {
 		this._passwordHash = hash;
 		this.save();
 	}
-	public get hasPassword() { return Boolean(this.passwordHash) }
+	public get hasPassword() { return Boolean(this.passwordHash); }
 
 	private _disabled: boolean;
-	public get disabled() { return this._disabled };
+	public get disabled() { return this._disabled; }
 	private set disabled(state: boolean) {
 		this._disabled = state;
 		this.save();
-	};
+	}
 
 	private _admin: boolean;
-	public get admin() { return this._admin };
+	public get admin() { return this._admin; }
 	private set admin(state: boolean) {
 		this._admin = state;
 		this.save();
@@ -81,7 +81,7 @@ class User extends Resource {
 	private readonly permissions: UserPermissions;
 
 	public readonly settings: UserSettings;
-	public get userManager() { return BaseManager.get(`users`) as UserManager };
+	public get userManager() { return BaseManager.get(`users`) as UserManager; }
 
 	constructor(options: UserOptions) {
 		options.managerId = 'users';
@@ -108,7 +108,7 @@ class User extends Resource {
 			disabled: this.disabled,
 			admin: this.admin,
 			permissions: { global: this.permissions.global, realm: Array.from(this.permissions.realm.entries()) },
-		}
+		};
 	}
 
 	hasPermission(perm: Permission, realm?: Realm): boolean {

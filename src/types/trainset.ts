@@ -13,8 +13,8 @@ interface TrainSetOptionsMetadata extends ResourceOptions {
 
 class TrainSet extends Resource {
 	private _name: string;
-	public get name() { return this._name };
-	private set name(name: string) { this._name = name };
+	public get name() { return this._name; }
+	private set name(name: string) { this._name = name; }
 
 	public readonly components: Movable[];
 
@@ -39,7 +39,7 @@ class TrainSet extends Resource {
 			id: this.id,
 			name: this.name,
 			components: this.components.map(c => c.metadata()),
-		}
+		};
 	}
 
 	async save(): Promise<boolean> {

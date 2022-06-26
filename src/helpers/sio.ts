@@ -24,6 +24,6 @@ function createSIOServer(http: HTTPServer): SIOServer {
 
 	servers.push(io);
 	return io;
-};
+}
 
 export { createSIOServer, servers };

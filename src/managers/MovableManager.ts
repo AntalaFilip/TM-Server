@@ -14,11 +14,12 @@ class MovableManager extends ResourceManager {
 
 		this.movables = new Collection();
 
-		this.ready = new Promise(async (res) => {
-			await this.createAllFromStore();
-
-			console.log(`MovableManager (${this.id}) ready; loaded ${this.movables.size} movables`);
-			res();
+		this.ready = new Promise((res) => {
+			this.createAllFromStore()
+				.then(() => {
+					console.log(`MovableManager (${this.id}) ready; loaded ${this.movables.size} movables`);
+					res();
+				});
 		});
 	}
 

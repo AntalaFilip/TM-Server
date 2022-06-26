@@ -13,11 +13,12 @@ class StationManager extends ResourceManager {
 
 		this.stations = new Collection();
 
-		this.ready = new Promise(async (res) => {
-			await this.createAllFromStore();
-
-			console.log(`StationManager (${this.id}) ready; loaded ${this.stations.size} stations`);
-			res();
+		this.ready = new Promise((res) => {
+			this.createAllFromStore()
+				.then(() => {
+					console.log(`StationManager (${this.id}) ready; loaded ${this.stations.size} stations`);
+					res();
+				});
 		})
 	}
 
@@ -59,7 +60,7 @@ class StationManager extends ResourceManager {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as StationOptions;
 				const trackData = await this.db.redis.hgetall(`${k}:tracks`);
-				const tracks = Object.entries(trackData).map(([k, v]) => JSON.parse(v) as StationTrackOptions).map(meta => new StationTrack(meta));
+				const tracks = Object.entries(trackData).map(([_k, v]) => JSON.parse(v) as StationTrackOptions).map(meta => new StationTrack(meta));
 				v.tracks = tracks;
 				await this.create(v);
 			}

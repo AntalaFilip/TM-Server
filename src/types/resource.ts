@@ -12,10 +12,10 @@ abstract class Resource {
 	public readonly realmId: string;
 	public readonly type: string;
 
-	public get realm() { return this.manager.realm };
+	public get realm() { return this.manager.realm; }
 
 	public readonly managerId: string;
-	public get manager() { return ResourceManager.get(this.managerId) };
+	public get manager() { return ResourceManager.get(this.managerId); }
 
 	constructor(type: string, options: ResourceOptions) {
 		this.id = options.id ?? newUUID();
@@ -31,7 +31,7 @@ abstract class Resource {
 	 * @param noSave Whether to skip saving the Resource
 	 * @returns
 	 */
-	protected propertyChange(prop: string, value: any, noSave = false) {
+	protected propertyChange(prop: string, value: unknown, noSave = false) {
 		if (!noSave) this.save();
 		return this.realm.ionsp.emit('propertyChange', this.id, this.type, prop, value);
 	}

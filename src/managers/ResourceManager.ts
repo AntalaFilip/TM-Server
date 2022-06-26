@@ -34,7 +34,7 @@ abstract class ResourceManager extends BaseManager implements ResourceData {
 	key(name: string): string {
 		return `${this.id}:${name}`
 	}
-};
+}
 
 export default ResourceManager;
 export { ResourceData };

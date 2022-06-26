@@ -9,11 +9,11 @@ interface WagonOptions extends MovableOptions {
 class Wagon extends Movable {
 	private _wagonType: WagonType;
 	/** Type of the current wagon; eg. passenger/cargo */
-	public get wagonType() { return this._wagonType };
+	public get wagonType() { return this._wagonType; }
 	private set wagonType(type: WagonType) {
 		this._wagonType = type;
 		this.propertyChange('wagonType', this.wagonType);
-	};
+	}
 
 	constructor(options: WagonOptions) {
 		super('wagon', options);
@@ -40,7 +40,7 @@ class Wagon extends Movable {
 	static is(movable: Movable): movable is Wagon {
 		return movable instanceof this;
 	}
-};
+}
 
 export default Wagon;
 export { WagonOptions, WagonType };

@@ -1,8 +1,5 @@
-import { newUUID } from "../helpers/id";
-import Locomotive from "./locomotive";
 import Resource, { ResourceOptions } from "./resource";
 import Station from "./station";
-import StationTrack from "./track";
 
 type MovableLocation = Station;
 
@@ -26,50 +23,50 @@ abstract class Movable extends Resource {
 
 	private _model: string;
 	/** The model ID of the object */
-	public get model() { return this._model };
+	public get model() { return this._model; }
 	private set model(model: string) {
 		this._model = model;
 		this.propertyChange('model', this.model);
-	};
+	}
 
 	private _maxSpeed?: number;
 	/** Maximum allowed speed for this object in KM/h */
-	public get maxSpeed() { return this._maxSpeed };
+	public get maxSpeed() { return this._maxSpeed; }
 	private set maxSpeed(speed: number) {
 		this._maxSpeed = speed;
 		this.propertyChange('maxSpeed', this.maxSpeed);
-	};
+	}
 
 	private _length?: number;
 	/** Length of the movable object in CM */
-	public get length() { return this._length };
+	public get length() { return this._length; }
 	private set length(length: number) {
 		this._length = length;
 		this.propertyChange('length', this.length);
-	};
+	}
 
 	private _couplerType: string;
 	/** Type of the coupler used */
-	public get couplerType() { return this._couplerType };
+	public get couplerType() { return this._couplerType; }
 	private set couplerType(type: string) {
 		this._couplerType = type;
 		this.propertyChange('couplerType', this.couplerType);
-	};
+	}
 
 	private _currentLocation?: MovableLocation;
 	/** The Station in which the object is currently located */
-	public get currentLocation() { return this._currentLocation };
+	public get currentLocation() { return this._currentLocation; }
 	private set currentLocation(location: MovableLocation) {
 		this._currentLocation = location;
 		this.propertyChange('currentLocation', this.currentLocation);
-	};
+	}
 
 	private _name: string;
-	public get name() { return this._name };
+	public get name() { return this._name; }
 	public set name(name: string) {
 		this._name = name;
 		this.propertyChange('name', this.name);
-	};
+	}
 
 	/* private _currentStatus: number;
 	public get currentStatus() { return this._currentStatus };
@@ -82,7 +79,8 @@ abstract class Movable extends Resource {
 		this._maxSpeed = options.maxSpeed;
 		this._length = options.length;
 		this._couplerType = options.couplerType;
-		this._currentLocation = null; // TODO: do location cool things
+		// TODO: do location cool things
+		this._currentLocation = null;
 
 		this._name = options.name;
 	}

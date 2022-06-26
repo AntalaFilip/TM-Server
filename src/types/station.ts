@@ -14,28 +14,28 @@ interface StationOptions extends ResourceOptions {
 
 class Station extends Resource {
 	private _name: string;
-	public get name() { return this._name };
+	public get name() { return this._name; }
 	private set name(name: string) {
 		this._name = name;
 		this.propertyChange(`name`, name);
 	}
 
 	private _stationType: StationType;
-	public get stationType() { return this._stationType };
+	public get stationType() { return this._stationType; }
 	private set stationType(type: StationType) {
 		this._stationType = type;
 		this.propertyChange(`stationType`, type);
 	}
 
 	private _dispatcher: User;
-	public get dispatcher() { return this._dispatcher };
+	public get dispatcher() { return this._dispatcher; }
 	private set dispatcher(disp: User) {
 		this._dispatcher = disp;
 		// TODO: stream
 		this.propertyChange(`dispatcher`, disp);
 	}
 
-	public get trains() { return Array.from(this.realm.trainManager.trains.filter(t => t.location === this).values()) };
+	public get trains() { return Array.from(this.realm.trainManager.trains.filter(t => t.location === this).values()); }
 
 	public readonly tracks: Collection<string, StationTrack>;
 
@@ -55,7 +55,7 @@ class Station extends Resource {
 			realmId: this.realmId,
 			id: this.id,
 			stationType: this.stationType,
-		}
+		};
 	}
 
 	/**

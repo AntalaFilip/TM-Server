@@ -12,12 +12,13 @@ class TrainSetManager extends ResourceManager {
 
 		this.trainsets = new Collection();
 
-		this.ready = new Promise(async (res) => {
-			await this.createAllFromStore();
-
-			console.log(`TrainSetManager (${this.id}) ready; ${this.trainsets.size} sets loaded`);
-			res();
-		})
+		this.ready = new Promise((res) => {
+			this.createAllFromStore()
+				.then(() => {
+					console.log(`TrainSetManager (${this.id}) ready; ${this.trainsets.size} sets loaded`);
+					res();
+				});
+		});
 	}
 
 	get(id: string): TrainSet {
@@ -56,7 +57,7 @@ class TrainSetManager extends ResourceManager {
 				await this.create(v);
 			}
 			catch {
-				console.warn(`Malformed trainset data @ ${r[0]}`)
+				console.warn(`Malformed trainset data @ ${r[0]}`);
 			}
 		}
 

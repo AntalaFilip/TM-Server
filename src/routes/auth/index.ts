@@ -23,7 +23,7 @@ function createAuthRouter(client: Client) {
 			delete data.managerId;
 
 			return res.send({ user: data });
-		}
+		},
 	);
 
 	return router;

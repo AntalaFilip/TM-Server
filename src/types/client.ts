@@ -18,7 +18,7 @@ class Client implements ResourceData {
 	public readonly io: SIOServer;
 	public readonly express: Application;
 	public readonly http: http.Server;
-	public readonly db: Redis
+	public readonly db: Redis;
 
 	public readonly realms: Collection<string, Realm>;
 
@@ -34,16 +34,20 @@ class Client implements ResourceData {
 		this.realms = new Collection();
 		this.userManager = new UserManager(this);
 
-		this.ready = new Promise(async (res) => {
-			await this.userManager.ready;
-			await this.createAllFromStore();
+		this.ready = new Promise((res) => {
+			this.userManager.ready
+				.then(() => {
+					this.createAllFromStore()
+						.then(() => {
+							const httpRouter = createIndexRouter(this);
+							this.express.use(httpRouter);
 
-			const httpRouter = createIndexRouter(this);
-			this.express.use(httpRouter);
+							console.log(`Client ready; ${this.realms.size} Realms active`);
+							res();
+						});
+				});
 
-			console.log(`Client ready; ${this.realms.size} Realms active`);
-			return res();
-		})
+		});
 	}
 
 	private async createAllFromStore() {

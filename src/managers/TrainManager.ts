@@ -1,6 +1,5 @@
 import Collection from "@discordjs/collection";
 import Realm from "../types/realm";
-import Resource from "../types/resource";
 import Train, { TrainOptions } from "../types/train";
 import ResourceManager from "./ResourceManager";
 
@@ -12,11 +11,12 @@ class TrainManager extends ResourceManager {
 		super(realm, `trains`);
 
 		this.trains = new Collection();
-		this.ready = new Promise(async res => {
-			await this.createAllFromStore();
-
-			console.log(`TrainManager (${this.id}) ready; loaded ${this.trains.size} trains`);
-			res();
+		this.ready = new Promise(res => {
+			this.createAllFromStore()
+				.then(() => {
+					console.log(`TrainManager (${this.id}) ready; loaded ${this.trains.size} trains`);
+					res();
+				});
 		});
 	}
 
@@ -57,7 +57,7 @@ class TrainManager extends ResourceManager {
 				await this.create(v);
 			}
 			catch {
-				console.warn(`Malformed train data @ ${r[0]}`)
+				console.warn(`Malformed train data @ ${r[0]}`);
 			}
 		}
 	}

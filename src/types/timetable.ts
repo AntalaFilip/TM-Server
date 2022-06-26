@@ -9,14 +9,14 @@ interface TimetableOptions extends ResourceOptions {
 
 class Timetable extends Resource {
 	private _name: string;
-	public get name() { return this._name };
+	public get name() { return this._name; }
 	private set name(name: string) {
 		this._name = name;
 		this.propertyChange(`name`, name);
 	}
 
 	private _genCount: number;
-	public get genCount() { return this._genCount };
+	public get genCount() { return this._genCount; }
 	private set genCount(count: number) {
 		this._genCount = count || 5;
 		this.propertyChange(`genCount`, count);
@@ -30,7 +30,7 @@ class Timetable extends Resource {
 
 		this._name = options.name;
 		this._genCount = options.genCount ?? 5;
-		this.entries = options.entries ?? new Array();
+		this.entries = options.entries ?? [];
 	}
 
 	addEntry(entry: TimetableEntry) {
@@ -48,7 +48,7 @@ class Timetable extends Resource {
 			id: this.id,
 			name: this.name,
 			genCount: this.genCount,
-		}
+		};
 	}
 
 	async save(): Promise<boolean> {

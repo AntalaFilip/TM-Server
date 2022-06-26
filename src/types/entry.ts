@@ -22,73 +22,73 @@ interface TimetableEntryOptions extends ResourceOptions {
 
 class TimetableEntry extends Resource {
 	public readonly ttId: string;
-	public get timetable(): Timetable { return this.realm.timetableManager.get(this.ttId) };
+	public get timetable(): Timetable { return this.realm.timetableManager.get(this.ttId); }
 
 	private _trainId: string;
-	public get trainId() { return this._trainId };
+	public get trainId() { return this._trainId; }
 	private set trainId(id: string) {
 		this._trainId = id;
 		this.propertyChange(`trainId`, id);
 	}
-	public get train() { return this.realm.trainManager.get(this.trainId) };
+	public get train() { return this.realm.trainManager.get(this.trainId); }
 
 	private _stationId: string;
-	public get stationId() { return this._stationId };
+	public get stationId() { return this._stationId; }
 	private set stationId(id: string) {
 		this._stationId = id;
 		this.propertyChange(`stationId`, id);
 	}
-	public get station() { return this.realm.stationManager.get(this.stationId) };
+	public get station() { return this.realm.stationManager.get(this.stationId); }
 
 	private _trackId: string;
-	public get trackId() { return this._trackId };
+	public get trackId() { return this._trackId; }
 	private set trackId(id: string) {
 		this._trackId = id;
 		this.propertyChange(`trackId`, id);
 	}
-	public get track() { return this.station.tracks.get(this.trackId) };
+	public get track() { return this.station.tracks.get(this.trackId); }
 
 	public readonly setIds: string[];
-	public get sets() { return this.setIds.map(id => this.realm.trainSetManager.get(id)) };
+	public get sets() { return this.setIds.map(id => this.realm.trainSetManager.get(id)); }
 
 	private _locomotiveId: string;
-	public get locomotiveId() { return this._locomotiveId };
+	public get locomotiveId() { return this._locomotiveId; }
 	private set locomotiveId(id: string) {
 		this._locomotiveId = id;
 		this.propertyChange(`locomotiveId`, id);
 	}
-	public get locomotive() { return this.realm.movableManager.getLoco(this.locomotiveId) };
+	public get locomotive() { return this.realm.movableManager.getLoco(this.locomotiveId); }
 
 	private _usedFrom: Date;
-	public get usedFrom() { return this._usedFrom };
+	public get usedFrom() { return this._usedFrom; }
 	private set usedFrom(date: Date) {
 		this._usedFrom = date;
 		this.propertyChange(`usedFrom`, date);
 	}
 
 	private _usedTill: Date;
-	public get usedTill() { return this._usedTill };
+	public get usedTill() { return this._usedTill; }
 	private set usedTill(date: Date) {
 		this._usedTill = date;
 		this.propertyChange(`usedTill`, date);
 	}
 
 	private _repeats: number;
-	public get repeats() { return this._repeats };
+	public get repeats() { return this._repeats; }
 	private set repeats(ms: number) {
 		this._repeats = ms;
 		this.propertyChange(`repeats`, ms);
 	}
 
 	private _start: Date;
-	public get start() { return this._start };
+	public get start() { return this._start; }
 	private set start(date: Date) {
 		this.start = date;
 		this.propertyChange(`start`, date);
 	}
 
 	private _duration: number;
-	public get duration() { return this._duration };
+	public get duration() { return this._duration; }
 	private set duration(length: number) {
 		this._duration = length;
 		this.propertyChange(`duration`, length);
@@ -96,7 +96,7 @@ class TimetableEntry extends Resource {
 
 	public readonly times: ArrDepSet[];
 	private _current: ArrDepSet;
-	public get current() { return this._current };
+	public get current() { return this._current; }
 	private set current(set: ArrDepSet) {
 		this._current = set;
 		this.propertyChange(`current`, set);
@@ -115,8 +115,8 @@ class TimetableEntry extends Resource {
 		this._usedFrom = options.usedFrom;
 		this._usedTill = options.usedTill;
 
-		this.setIds = options.setIds ?? new Array();
-		this.times = new Array();
+		this.setIds = options.setIds ?? [];
+		this.times = [];
 
 		this.regenerate();
 

@@ -24,22 +24,22 @@ class Realm extends Resource {
 	public readonly ready: Promise<void>;
 
 	private _name: string;
-	public get name(): string { return this._name };
-	private set name(name: string) { this._name = name; };
+	public get name(): string { return this._name; }
+	private set name(name: string) { this._name = name; }
 
 	public readonly ionsp: SIONamespace;
 	public readonly db: Redis;
 	public readonly client: Client;
 
-	public override get manager(): null { return null };
+	public override get manager(): null { return null; }
 
 	private _activeTimetableId: string;
-	public get activeTimetableId() { return this._activeTimetableId };
+	public get activeTimetableId() { return this._activeTimetableId; }
 	private set activeTimetableId(id: string) {
 		this._activeTimetableId = id;
 		this.propertyChange(`activeTimetableId`, id);
 	}
-	public get activeTimetable() { return this.timetableManager?.get(this.activeTimetableId) };
+	public get activeTimetable() { return this.timetableManager?.get(this.activeTimetableId); }
 
 	// Managers
 	public readonly stationManager: StationManager;
@@ -65,18 +65,24 @@ class Realm extends Resource {
 		this.movableManager = new MovableManager(this);
 		this.timetableManager = new TimetableManager(this);
 
-		this.ready = new Promise(async (res) => {
-			await this.timeManager.ready;
-			await this.stationManager.ready;
-			await this.trainSetManager.ready;
-			await this.trainManager.ready;
-			await this.movableManager.ready;
-			await this.timetableManager.ready;
+		// eslint-disable-next-line no-async-promise-executor
+		this.ready = new Promise(async (res, rej) => {
+			try {
+				await this.timeManager.ready;
+				await this.stationManager.ready;
+				await this.trainSetManager.ready;
+				await this.trainManager.ready;
+				await this.movableManager.ready;
+				await this.timetableManager.ready;
 
-			await this.save();
+				await this.save();
 
-			console.log(`Realm (${this.id}) ready!`);
-			res();
+				console.log(`Realm (${this.id}) ready!`);
+				res();
+			}
+			catch (err) {
+				rej(err);
+			}
 		});
 	}
 
@@ -88,7 +94,7 @@ class Realm extends Resource {
 			id: this.id,
 			ownerId: this.owner.id,
 			activeTimetableId: this.activeTimetableId,
-		}
+		};
 	}
 
 	async save(): Promise<boolean> {

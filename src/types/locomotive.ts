@@ -14,7 +14,7 @@ class Locomotive extends Movable {
 	}
 
 	private _controller: User;
-	public get controller() { return this._controller };
+	public get controller() { return this._controller; }
 	private set controller(ctl: User) {
 		this._controller = ctl;
 		const trueTimestamp = this.manager.realm.timeManager.trueMs;

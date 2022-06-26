@@ -13,11 +13,12 @@ class TimetableManager extends ResourceManager {
 
 		this.timetables = new Collection();
 
-		this.ready = new Promise(async res => {
-			await this.createAllFromStore();
-
-			console.log(`TimetableManager ${this.id} ready; loaded ${this.timetables.size} timetables. Current active timetable: ${this.realm.activeTimetable?.name ?? 'none'}`);
-			res();
+		this.ready = new Promise(res => {
+			this.createAllFromStore()
+				.then(() => {
+					console.log(`TimetableManager ${this.id} ready; loaded ${this.timetables.size} timetables. Current active timetable: ${this.realm.activeTimetable?.name ?? 'none'}`);
+					res();
+				});
 		});
 	}
 
@@ -31,7 +32,7 @@ class TimetableManager extends ResourceManager {
 		const timetableMeta = await this.db.get(fullId) as TimetableOptions;
 
 		const entriesData = await this.db.redis.hgetall(`${fullId}:entries`);
-		const entries = Object.entries(entriesData).map(([k, v]) => JSON.parse(v) as TimetableEntryOptions).map(meta => new TimetableEntry(meta));
+		const entries = Object.entries(entriesData).map(([_k, v]) => JSON.parse(v) as TimetableEntryOptions).map(meta => new TimetableEntry(meta));
 		timetableMeta.entries = entries;
 
 		return new Timetable(timetableMeta);
@@ -61,7 +62,7 @@ class TimetableManager extends ResourceManager {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as TimetableOptions;
 				const entriesData = await this.db.redis.hgetall(this.key(`${k}:entries`));
-				const entries = Object.entries(entriesData).map(([k, v]) => JSON.parse(v) as TimetableEntryOptions).map(meta => new TimetableEntry(meta));
+				const entries = Object.entries(entriesData).map(([_k, meta]) => JSON.parse(meta) as TimetableEntryOptions).map(meta => new TimetableEntry(meta));
 				v.entries = entries;
 
 				await this.create(v);
