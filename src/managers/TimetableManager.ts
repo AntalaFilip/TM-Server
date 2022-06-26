@@ -16,7 +16,7 @@ class TimetableManager extends ResourceManager {
 		this.ready = new Promise(res => {
 			this.createAllFromStore()
 				.then(() => {
-					console.log(`TimetableManager ${this.id} ready; loaded ${this.timetables.size} timetables. Current active timetable: ${this.realm.activeTimetable?.name ?? 'none'}`);
+					console.log(`TimetableManager (${this.id}) ready; loaded ${this.timetables.size} timetables. Current active timetable: ${this.realm.activeTimetable?.name ?? 'none'}`);
 					res();
 				});
 		});
