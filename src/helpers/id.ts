@@ -1,7 +1,7 @@
-import { nanoid } from "nanoid";
+import crypto from 'crypto';
 
 function newUUID(): string {
-	return nanoid();
+	return crypto.randomUUID();
 }
 
 export { newUUID };
