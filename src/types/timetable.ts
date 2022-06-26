@@ -33,6 +33,17 @@ class Timetable extends Resource {
 		this.entries = options.entries ?? [];
 	}
 
+	/**
+	 * Checks whether the Timetable is valid to be used (ex. be set as the active timetable)
+	 * @returns boolean indicating validity
+	 */
+	runChecks() {
+		if (this.entries.length === 0) return false;
+		if (!this.entries.every(e => e.times.length > 0)) return false;
+
+		return true;
+	}
+
 	addEntry(entry: TimetableEntry) {
 		if (this.entries.includes(entry)) return false;
 
