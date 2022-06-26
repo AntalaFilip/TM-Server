@@ -1,6 +1,17 @@
 import RedisClient from "ioredis";
-const redis = new RedisClient(process.env.REDIS_URL, { password: process.env.REDIS_PASS });
+import { config } from 'dotenv';
+config();
 
+const redis = new RedisClient(process.env.REDIS_URL, { password: process.env.REDIS_PASS, keyPrefix: process.env.REDIS_PREFIX });
+
+/**
+ * Redis ID Structure as follows:
+ * `PREFIX:trainmanager:`
+ * - `realms:REALM:`
+ * 	- `stations:STATION:`
+ * 		- `tracks`
+ * 	- `time`
+ */
 class Redis {
 	readonly name: string;
 	readonly redis: RedisClient;
@@ -23,7 +34,7 @@ class Redis {
 		}
 		catch {
 			if (Number(data) != NaN) return Number(data);
-			
+
 			return data;
 		}
 	}
