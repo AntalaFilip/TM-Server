@@ -67,6 +67,7 @@ class Client implements ResourceData {
 		if (!(resource instanceof Realm)) {
 			resource = new Realm(this, resource);
 		}
+		if (!(resource instanceof Realm)) return;
 
 		await resource.ready;
 
