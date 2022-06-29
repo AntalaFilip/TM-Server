@@ -21,7 +21,9 @@ interface RealmOptions extends ResourceOptions {
 
 class Realm extends Resource {
 	public readonly id: string;
-	public readonly owner: User;
+	public readonly ownerId: string;
+	public get owner() { return this.client.userManager.get(this.ownerId) }
+
 	public readonly ready: Promise<void>;
 
 	private _name: string;
@@ -53,7 +55,7 @@ class Realm extends Resource {
 	constructor(client: Client, options: RealmOptions) {
 		super('realm', options);
 		this.client = client;
-		this.owner = this.client.userManager.get(options.ownerId);
+		this.ownerId = options.ownerId;
 
 		this.name = options.name || this.id;
 		this.ionsp = options.ionsp ?? this.client.io.of(`/realms/${this.id}`);
@@ -111,7 +113,7 @@ class Realm extends Resource {
 			name: this.name,
 			realmId: this.realmId,
 			id: this.id,
-			ownerId: this.owner.id,
+			ownerId: this.ownerId,
 			activeTimetableId: this.activeTimetableId,
 		};
 	}
