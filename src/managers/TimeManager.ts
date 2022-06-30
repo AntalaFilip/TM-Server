@@ -6,6 +6,7 @@ interface TimeOptions {
 	speedModifier: number,
 	trueElapsed?: number,
 	elapsed?: number,
+	running?: boolean,
 }
 
 /**
@@ -125,6 +126,7 @@ class TimeManager extends BaseManager {
 			speedModifier: this.speedModifier,
 			trueElapsed: this.trueMs,
 			elapsed: this.elapsed,
+			running: this.running,
 		}
 	}
 
