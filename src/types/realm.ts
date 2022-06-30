@@ -9,7 +9,6 @@ import TrainSetManager from "../managers/TrainSetManager";
 import Client from "./client";
 import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
-import User from "./user";
 
 interface RealmOptions extends ResourceOptions {
 	name: string,
