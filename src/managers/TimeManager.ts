@@ -1,4 +1,5 @@
 import Realm from "../types/realm";
+import User from "../types/user";
 import BaseManager from "./BaseManager";
 
 interface TimeOptions {
@@ -128,6 +129,13 @@ class TimeManager extends BaseManager {
 			elapsed: this.elapsed,
 			running: this.running,
 		}
+	}
+
+	setRunning(state: boolean, actor: User) {
+		if (!actor.hasPermission('control time')) throw new Error(`No permission`);
+
+		// TODO: auditing
+		this.running = state;
 	}
 
 	/**
