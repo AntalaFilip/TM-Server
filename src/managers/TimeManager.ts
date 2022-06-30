@@ -132,7 +132,7 @@ class TimeManager extends BaseManager {
 	}
 
 	setRunning(state: boolean, actor: User) {
-		if (!actor.hasPermission('control time')) throw new Error(`No permission`);
+		if (!actor.hasPermission('control time', this.realm)) throw new Error(`No permission`);
 
 		// TODO: auditing
 		this.running = state;
