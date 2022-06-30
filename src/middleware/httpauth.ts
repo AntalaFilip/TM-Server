@@ -1,10 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../helpers/jwt";
 import Client from "../types/client";
+import Realm from "../types/realm";
 import User from "../types/user";
 
 interface TMRequest extends Request {
 	auth?: User,
+	realm?: Realm,
 }
 
 async function authenticate(reject: boolean, authRealm = 'trainmanager', client: Client, req: TMRequest, res: Response, next: NextFunction) {
