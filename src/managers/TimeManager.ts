@@ -138,6 +138,29 @@ class TimeManager extends BaseManager {
 		this.running = state;
 	}
 
+	modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage time', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.startPoint === 'number') {
+			this.startPoint = data.startPoint;
+			modified = true;
+		}
+		if (typeof data.speedModifier === 'number') {
+			this.speedModifier = data.speedModifier;
+			modified = true;
+		}
+		if (typeof data.running === 'boolean') {
+			this.running = data.running;
+			modified = true;
+		}
+
+		if (!modified) return false;
+
+		return true;
+	}
 	/**
 	 * Saves current data to memory & Redis and broadcasts a Socket.IO event
 	 * @param bc Whether to broadcast an SIO event (def: true)

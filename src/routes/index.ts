@@ -9,10 +9,10 @@ function createIndexRouter(client: Client) {
 	router.use(cookieParser());
 
 	const authRouter = createAuthRouter(client);
-	// const realmsRouter = createRealmsRouter(client);
+	const realmsRouter = createRealmsRouter(client);
 
 	router.use('/auth', authRouter);
-	// router.use('/realms', realmsRouter);
+	router.use('/realms', realmsRouter);
 
 	return router;
 }

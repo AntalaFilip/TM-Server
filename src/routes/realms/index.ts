@@ -1,20 +1,24 @@
 import Client from "../../types/client";
 import Express from "express";
+import realmParser from "../../middleware/realmParser";
+import createRealmTimeRouter from "./time";
 
 function createRealmsRouter(client: Client) {
 	const mainRouter = Express.Router();
 	const realmRouter = Express.Router();
 
-	mainRouter.use('/');
-	mainRouter.use('/:realm', realmRouter);
+	const timeRouter = createRealmTimeRouter(client);
 
-	realmRouter.use('/');
-	realmRouter.use('/time');
-	realmRouter.use('/stations');
-	realmRouter.use('/trains');
-	realmRouter.use('/trainsets');
-	realmRouter.use('/locomotives');
-	realmRouter.use('/wagons');
+	// mainRouter.use('/');
+	mainRouter.use('/:realm', realmParser.bind(undefined, true, client), realmRouter);
+
+	// realmRouter.use('/');
+	realmRouter.use('/time', timeRouter);
+	// realmRouter.use('/stations');
+	// realmRouter.use('/trains');
+	// realmRouter.use('/trainsets');
+	// realmRouter.use('/locomotives');
+	// realmRouter.use('/wagons');
 
 
 	return mainRouter;
