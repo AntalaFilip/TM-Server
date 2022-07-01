@@ -2,6 +2,7 @@ import { json, Response, Router } from "express";
 import { authenticate } from "../../middleware/httpauth";
 import { TMRealmRequest } from "../../middleware/realmParser";
 import stationParser, { TMStationRequest } from "../../middleware/stationParser";
+import trackParser, { TMTrackRequest } from "../../middleware/trackParser";
 import Client from "../../types/client";
 import { checkStationTypeValidity } from "../../types/station";
 
@@ -9,16 +10,51 @@ function createStationRouter(client: Client) {
 	const router = Router();
 	router.use(json());
 
-	const specificRouter = Router();
+	const stationSpecificRouter = Router();
+	const trackRouter = Router();
+	const trackSpecificRouter = Router();
 
 	router.get('/', getAllStations);
 	router.post('/', authenticate.bind(undefined, true, 'station management', client), createStation);
-	router.use('/:station', stationParser.bind(undefined, true), specificRouter);
+	router.use('/:station', stationParser.bind(undefined, true), stationSpecificRouter);
 
-	specificRouter.get('/', getStation);
-	specificRouter.patch('/', updateStation);
+	stationSpecificRouter.get('/', getStation);
+	stationSpecificRouter.patch('/', updateStation);
+
+	stationSpecificRouter.use('/tracks', trackRouter);
+	trackRouter.get('/', getAllTracks);
+	// trackRouter.post('/');
+
+	trackRouter.use('/:track', trackParser.bind(undefined, true), trackSpecificRouter);
+	trackSpecificRouter.get('/', getTrack);
+	trackSpecificRouter.patch('/', updateTrack);
 
 	return router;
+}
+
+function getAllTracks(req: TMStationRequest, res: Response) {
+	const station = req.station;
+	const data = station.tracks.map(t => t.metadata());
+
+	return res.status(200).send(data);
+}
+
+function updateTrack(req: TMTrackRequest, res: Response) {
+	const track = req.track;
+	const user = req.auth;
+	if (!user.hasPermission('manage stations')) return res.status(403).send({ message: `No permission`, error: { code: `ENOPERM` } });
+
+	const toUpdate = req.body;
+	const mdf = track.modify(toUpdate, user);
+	if (mdf) return res.status(200).send(track.metadata());
+	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
+}
+
+function getTrack(req: TMTrackRequest, res: Response) {
+	const track = req.track;
+	const data = track.metadata();
+
+	return res.status(200).send({ ...data, currentTrain: track.currentTrain });
 }
 
 function getAllStations(req: TMRealmRequest, res: Response) {
