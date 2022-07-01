@@ -10,8 +10,17 @@ function createRealmTimeRouter(client: Client) {
 
 	router.get('/', getRealmTime);
 	router.patch('/', authenticate.bind(undefined, true, 'time management', client), modifyRealmTime);
+	router.use('/', (req, res, next) => {
+		if (req.method != 'GET' && req.method != 'PATCH') return res.status(405).send();
+		else next();
+	});
+
 
 	router.post('/pause', authenticate.bind(undefined, true, 'time management', client), pauseRealmTime);
+	router.use('/pause', (req, res, next) => {
+		if (req.method != 'POST') return res.status(405).send();
+		else next();
+	});
 
 	return router;
 }
