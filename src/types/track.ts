@@ -1,5 +1,6 @@
 import Resource, { ResourceOptions } from "./resource";
 import Train from "./train";
+import User from "./user";
 
 interface StationTrackOptions extends ResourceOptions {
 	stationId: string;
@@ -34,6 +35,26 @@ class StationTrack extends Resource {
 		this.stationId = options.stationId;
 		this._length = options.length;
 		this._usedForParking = options.usedForParking;
+	}
+
+	modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage stations', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.length === 'number') {
+			this.length = data.length;
+			modified = true;
+		}
+		if (typeof data.usedForParking === 'boolean') {
+			this.usedForParking = data.usedForParking;
+			modified = true;
+		}
+
+		if (!modified) return false;
+
+		return true;
 	}
 
 	metadata(): StationTrackOptions {
