@@ -44,8 +44,10 @@ function updateTrack(req: TMTrackRequest, res: Response) {
 	const user = req.auth;
 	if (!user.hasPermission('manage stations')) return res.status(403).send({ message: `No permission`, error: { code: `ENOPERM` } });
 
-	const toUpdate = req.body;
-	const mdf = track.modify(toUpdate, user);
+	const data = req.body;
+	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
+
+	const mdf = track.modify(data, user);
 	if (mdf) return res.status(200).send(track.metadata());
 	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 }
@@ -55,6 +57,8 @@ async function createTrack(req: TMStationRequest, res: Response) {
 	if (!user.hasPermission('manage stations')) return res.status(403).send({ message: `No permission`, error: { code: `ENOPERM` } });
 
 	const data = req.body;
+	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
+
 	if (typeof data.name != 'string') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTNTRK-EBADPARAM-NAME` } } });
 	if (data.length && typeof data.length != 'number') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTNTRK-EBADPARAM-LENGTH` } } });
 	if (typeof data.usedForParking != 'boolean') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTNTRK-EBADPARAM-USEDFORPARKING` } } });
@@ -95,6 +99,7 @@ async function createStation(req: TMRealmRequest, res: Response) {
 	const smgr = realm.stationManager;
 
 	const data = req.body;
+	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 	if (!data.name || typeof data.name != 'string') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTN-EBADPARAM-NAME` } } });
 	if (!checkStationTypeValidity(data.stationType)) return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTN-EBADPARAM-STATIONTYPE` } } });
 
@@ -107,7 +112,10 @@ async function updateStation(req: TMStationRequest, res: Response) {
 	const { auth: user, realm, station } = req;
 
 	if (!user.hasPermission('manage stations', realm)) return res.status(403).send({ message: `No permission`, error: { code: `ENOPERM` } });
-	const mdf = station.modify(req.body, user);
+	const data = req.body;
+	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
+
+	const mdf = station.modify(data, user);
 	if (mdf) return res.status(200).send(station.metadata());
 	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 }
