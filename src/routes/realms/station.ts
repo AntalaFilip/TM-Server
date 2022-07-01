@@ -1,6 +1,6 @@
 import { json, Response, Router } from "express";
 import { authenticate } from "../../middleware/httpauth";
-import realmParser, { TMRealmRequest } from "../../middleware/realmParser";
+import { TMRealmRequest } from "../../middleware/realmParser";
 import stationParser, { TMStationRequest } from "../../middleware/stationParser";
 import trackParser, { TMTrackRequest } from "../../middleware/trackParser";
 import Client from "../../types/client";
