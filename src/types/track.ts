@@ -3,15 +3,23 @@ import Train from "./train";
 import User from "./user";
 
 interface StationTrackOptions extends ResourceOptions {
-	stationId: string;
-	length?: number;
-	usedForParking: boolean;
+	stationId: string,
+	name: string,
+	length?: number,
+	usedForParking: boolean,
 }
 
 class StationTrack extends Resource {
 	public readonly stationId: string;
 	/** The station the Track is located in */
 	public get station() { return this.realm.stationManager.get(this.stationId); }
+
+	private _name: string;
+	public get name() { return this._name }
+	private set name(name: string) {
+		this._name = name;
+		this.propertyChange(`name`, this.name);
+	}
 
 	private _length?: number;
 	public get length() { return this._length; }
@@ -43,6 +51,10 @@ class StationTrack extends Resource {
 
 		// TODO: auditing
 
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
 		if (typeof data.length === 'number') {
 			this.length = data.length;
 			modified = true;
@@ -65,6 +77,7 @@ class StationTrack extends Resource {
 			stationId: this.stationId,
 			usedForParking: this.usedForParking,
 			length: this.length,
+			name: this.name,
 		};
 	}
 
