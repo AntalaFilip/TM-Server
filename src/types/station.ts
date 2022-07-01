@@ -5,6 +5,10 @@ import User from "./user";
 
 type StationType = 'station' | 'stop';
 
+function checkStationTypeValidity(toCheck: unknown): toCheck is StationType {
+	return toCheck === 'station' || toCheck === 'stop';
+}
+
 interface StationOptions extends ResourceOptions {
 	name: string,
 	tracks?: StationTrack[],
@@ -58,6 +62,31 @@ class Station extends Resource {
 		};
 	}
 
+	modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage stations', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (checkStationTypeValidity(data.stationType)) {
+			this.stationType = data.stationType;
+			modified = true;
+		}
+		if (typeof data.dispatcher === 'string' && this.realm.client.userManager.get(data.dispatcher)) {
+			this.dispatcher = this.realm.client.userManager.get(data.dispatcher);
+			modified = true;
+		}
+
+
+		if (!modified) return false;
+
+		return true;
+	}
+
 	/**
 	 * Saves to Redis.
 	 * @redis ID structure: `BASE:realms:REALMID:station:STATIONID(+:tracks)`
@@ -74,4 +103,4 @@ class Station extends Resource {
 }
 
 export default Station;
-export { StationOptions };
+export { StationOptions, checkStationTypeValidity };
