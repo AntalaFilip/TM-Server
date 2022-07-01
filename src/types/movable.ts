@@ -1,7 +1,11 @@
 import Resource, { ResourceOptions } from "./resource";
 import Station from "./station";
+import StationTrack from "./track";
 
-type MovableLocation = Station;
+type MovableLocation = {
+	station: Station,
+	track?: StationTrack,
+};
 
 type MovableType = 'wagon' | 'locomotive';
 

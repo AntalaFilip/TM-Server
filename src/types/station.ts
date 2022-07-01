@@ -39,7 +39,7 @@ class Station extends Resource {
 		this.propertyChange(`dispatcher`, disp);
 	}
 
-	public get trains() { return Array.from(this.realm.trainManager.trains.filter(t => t.location === this).values()); }
+	public get trains() { return Array.from(this.realm.trainManager.trains.filter(t => t.location?.station === this).values()); }
 
 	public readonly tracks: Collection<string, StationTrack>;
 

@@ -42,7 +42,7 @@ class Train extends Resource {
 		this._location = newloc;
 		// TODO: paused time?
 		const trueTimestamp = this.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:locations`), "id", newloc?.id, "type", newloc?.type, "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:locations`), "id", newloc?.station.id, "type", newloc?.station.type, "track", newloc?.track?.id, "time", trueTimestamp);
 		this.propertyChange(`location`, newloc, true);
 	}
 
@@ -83,7 +83,7 @@ class Train extends Resource {
 		this._location = options.location;
 	}
 
-	updateTrainState(newState: TrainState, override = false) {
+	updateTrainState(newState: TrainState, override = false, ...extra: string[]) {
 		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
 		const prevState = this.state;
 		// TODO: autoskipping and stuff
@@ -96,13 +96,17 @@ class Train extends Resource {
 			}
 		}
 		else if (newState === 'ARRIVED') {
-			this.location = this.currentEntry.station;
+			this.location = {
+				station: this.currentEntry.station,
+				track: this.currentEntry.station.tracks.get(extra[0]) ?? this.currentEntry.track
+			};
 		}
 		else if (newState === 'READY') {
 			this.runStateChecks(override);
 		}
 		else if (newState === 'LEAVING') {
 			if (prevState != 'READY') this.runStateChecks(override);
+			this.location = { ...this.location, track: null };
 		}
 		else if (newState === 'MISSING') {
 			this.location = null;
