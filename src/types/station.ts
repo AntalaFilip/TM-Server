@@ -1,5 +1,5 @@
 import Resource, { ResourceOptions } from "./resource";
-import StationTrack from "./track";
+import StationTrack, { StationTrackOptions } from "./track";
 import Collection from '@discordjs/collection';
 import User from "./user";
 
@@ -50,6 +50,21 @@ class Station extends Resource {
 		this._stationType = options.stationType;
 		this._dispatcher = options.dispatcher;
 		this.tracks = new Collection(options.tracks?.map(v => [v.id, v]));
+	}
+
+	async addTrack(resource: StationTrack | StationTrackOptions, actor?: User) {
+		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');
+
+		if (!(resource instanceof StationTrack)) {
+			resource = new StationTrack(resource);
+		}
+		if (!(resource instanceof StationTrack)) return;
+
+		if (this.tracks.has(resource.id)) throw new Error(`This Track is already created and assigned!`);
+
+		this.tracks.set(resource.id, resource);
+		await resource.save();
+		return resource;
 	}
 
 	metadata(): StationOptions {
