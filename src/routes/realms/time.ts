@@ -1,5 +1,6 @@
 import { json, Response, Router } from "express";
-import { authenticate, TMRequest } from "../../middleware/httpauth";
+import { authenticate } from "../../middleware/httpauth";
+import { TMRealmRequest } from "../../middleware/realmParser";
 import Client from "../../types/client";
 
 
@@ -15,14 +16,14 @@ function createRealmTimeRouter(client: Client) {
 	return router;
 }
 
-async function getRealmTime(req: TMRequest, res: Response) {
+async function getRealmTime(req: TMRealmRequest, res: Response) {
 	const realm = req.realm;
 	const timeMgr = realm.timeManager;
 
 	return res.send({ data: timeMgr.metadata() });
 }
 
-async function modifyRealmTime(req: TMRequest, res: Response) {
+async function modifyRealmTime(req: TMRealmRequest, res: Response) {
 	const realm = req.realm;
 	const time = realm.timeManager;
 
@@ -34,7 +35,7 @@ async function modifyRealmTime(req: TMRequest, res: Response) {
 	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 }
 
-async function pauseRealmTime(req: TMRequest, res: Response) {
+async function pauseRealmTime(req: TMRealmRequest, res: Response) {
 	const realm = req.realm;
 	const user = req.auth;
 	if (!user.hasPermission('control time', realm)) return res.status(403).send({ message: 'No permission', error: { code: 'ENOPERM' } });

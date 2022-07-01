@@ -1,5 +1,5 @@
 import Express from "express";
-import { authenticate, TMRequest } from "../../middleware/httpauth";
+import { authenticate, TMAuthRequest } from "../../middleware/httpauth";
 import Client from "../../types/client";
 import login from "./login";
 import register from "./register";
@@ -15,7 +15,7 @@ function createAuthRouter(client: Client) {
 	router.get('/basic/me',
 		Express.json(),
 		authenticate.bind(undefined, true, undefined, client),
-		(req: TMRequest, res) => {
+		(req: TMAuthRequest, res) => {
 			if (!req.auth) return res.status(500).send();
 			const data = req.auth.metadata();
 

@@ -1,9 +1,9 @@
 import { Response } from "express";
-import { TMRequest } from "../../middleware/httpauth";
+import { TMAuthRequest } from "../../middleware/httpauth";
 import Client from "../../types/client";
 import User from "../../types/user";
 
-async function register(client: Client, req: TMRequest, res: Response) {
+async function register(client: Client, req: TMAuthRequest, res: Response) {
 	const authUser = req.auth;
 	if (!authUser.hasPermission('manage users') && !authUser.admin) return res.status(403).send({ message: 'Insufficient permissions!', error: { code: 'ENOPERM', permission: 'manage users' } });
 

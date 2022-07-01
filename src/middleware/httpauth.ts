@@ -1,15 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../helpers/jwt";
 import Client from "../types/client";
-import Realm from "../types/realm";
 import User from "../types/user";
 
-interface TMRequest extends Request {
+interface TMAuthRequest extends Request {
 	auth?: User,
-	realm?: Realm,
 }
 
-async function authenticate(reject: boolean, authRealm = 'trainmanager', client: Client, req: TMRequest, res: Response, next: NextFunction) {
+async function authenticate(reject: boolean, authRealm = 'trainmanager', client: Client, req: TMAuthRequest, res: Response, next: NextFunction) {
 	const authHeader = (req.headers['authorization'] ?? req.cookies['authToken']) as string;
 	if (reject && !authHeader) return res.status(401).header('WWW-Authenticate', `jwt realm="${authRealm}"`).send({ message: 'Unauthorized', error: { code: 'ENOAUTH' } });
 
@@ -30,4 +28,4 @@ async function authenticate(reject: boolean, authRealm = 'trainmanager', client:
 	next();
 }
 
-export { authenticate, TMRequest };
+export { authenticate, TMAuthRequest };
