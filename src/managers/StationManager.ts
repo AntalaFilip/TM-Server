@@ -2,6 +2,7 @@ import Collection from "@discordjs/collection";
 import Realm from "../types/realm";
 import Station, { StationOptions } from "../types/station";
 import StationTrack, { StationTrackOptions } from "../types/track";
+import User from "../types/user";
 import ResourceManager from "./ResourceManager";
 
 class StationManager extends ResourceManager {
@@ -26,7 +27,9 @@ class StationManager extends ResourceManager {
 		return this.stations.get(id);
 	}
 
-	async create(resource: Station | StationOptions): Promise<Station> {
+	async create(resource: Station | StationOptions, actor?: User): Promise<Station> {
+		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');
+
 		if (!(resource instanceof Station)) {
 			resource = new Station(resource);
 		}
