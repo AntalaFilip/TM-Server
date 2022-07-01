@@ -1,7 +1,7 @@
 import { json, Response, Router } from "express";
 import { authenticate } from "../../middleware/httpauth";
 import { TMRealmRequest } from "../../middleware/realmParser";
-import stationParser, { TMStationRequest } from "../../middleware/stationParsers";
+import stationParser, { TMStationRequest } from "../../middleware/stationParser";
 import Client from "../../types/client";
 import { checkStationTypeValidity } from "../../types/station";
 
