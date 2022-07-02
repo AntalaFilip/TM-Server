@@ -34,7 +34,6 @@ class Locomotive extends Movable {
 			realmId: this.realmId,
 			managerId: this.managerId,
 			type: this.type,
-			controller: this.controller,
 		};
 	}
 
