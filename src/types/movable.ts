@@ -1,3 +1,4 @@
+import Realm from "./realm";
 import Resource, { ResourceOptions } from "./resource";
 import Station from "./station";
 import StationTrack from "./track";
@@ -12,6 +13,29 @@ type MovableLocationMeta = {
 	stationId: string,
 	trackId?: string,
 };
+
+function checkMovableLocationMetaValidity(toCheck: Record<string, unknown>): toCheck is MovableLocationMeta {
+	return (
+		typeof toCheck === 'undefined'
+		|| (
+			typeof toCheck.stationId === 'string'
+			&& (!toCheck.trackId || typeof toCheck.trackId === 'string')
+		)
+	)
+}
+
+function checkMovableLocationMetaExistence(toCheck: Record<string, unknown>, realm: Realm): toCheck is MovableLocation {
+	return (
+		checkMovableLocationMetaValidity(toCheck)
+		&& (
+			toCheck != undefined
+			&& (
+				Boolean(realm.stationManager.get(toCheck.stationId))
+				&& (!toCheck.trackId || Boolean(realm.stationManager.get(toCheck.stationId).tracks.find(t => t.id === toCheck.trackId)))
+			)
+		)
+	)
+}
 
 type MovableType = 'wagon' | 'locomotive';
 
@@ -138,4 +162,4 @@ abstract class Movable extends Resource {
 }
 
 export default Movable;
-export { MovableOptions, MovableLocation };
+export { MovableOptions, MovableLocation, checkMovableLocationMetaExistence, checkMovableLocationMetaValidity };
