@@ -37,6 +37,23 @@ class Locomotive extends Movable {
 		};
 	}
 
+	modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage movables', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+		if (typeof data.controllerId === 'string' && this.realm.client.userManager.get(data.controllerId)) {
+			this.controller = this.realm.client.userManager.get(data.controllerId);
+			modified = true;
+		}
+
+		const mdf = this._modify(data, actor);
+
+		if (!modified && !mdf) return false;
+
+		return true;
+	}
+
 	static is(movable: Movable): movable is Locomotive {
 		return movable instanceof this;
 	}
