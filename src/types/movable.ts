@@ -1,6 +1,7 @@
 import Resource, { ResourceOptions } from "./resource";
 import Station from "./station";
 import StationTrack from "./track";
+import User from "./user";
 
 type MovableLocation = {
 	station: Station,
@@ -92,6 +93,40 @@ abstract class Movable extends Resource {
 		this._currentLocation = null;
 
 		this._name = options.name;
+	}
+
+	_modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage movables', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.model === 'string') {
+			this.model = data.model;
+			modified = true;
+		}
+		if (typeof data.maxSpeed === 'number') {
+			this.maxSpeed = data.maxSpeed;
+			modified = true;
+		}
+		if (typeof data.length === 'number') {
+			this.length = data.length;
+			modified = true;
+		}
+		if (typeof data.couplerType === 'string') {
+			this.couplerType = data.couplerType;
+			modified = true;
+		}
+		// TODO: currentLocation changes
+
+
+		if (!modified) return false;
+
+		return true;
 	}
 
 	abstract metadata(): MovableOptions
