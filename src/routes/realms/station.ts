@@ -9,25 +9,26 @@ import { checkStationTypeValidity } from "../../types/station";
 function createStationRouter(client: Client) {
 	const router = Router();
 	router.use(json());
+	const auth = authenticate.bind(undefined, true, 'station management', client)
 
 	const stationSpecificRouter = Router();
 	const trackRouter = Router();
 	const trackSpecificRouter = Router();
 
 	router.get('/', getAllStations);
-	router.post('/', authenticate.bind(undefined, true, 'station management', client), createStation);
+	router.post('/', auth, createStation);
 	router.use('/:station', stationParser.bind(undefined, true), stationSpecificRouter);
 
 	stationSpecificRouter.get('/', getStation);
-	stationSpecificRouter.patch('/', updateStation);
+	stationSpecificRouter.patch('/', auth, updateStation);
 
 	stationSpecificRouter.use('/tracks', trackRouter);
 	trackRouter.get('/', getAllTracks);
-	trackRouter.post('/', createTrack);
+	trackRouter.post('/', auth, createTrack);
 
 	trackRouter.use('/:track', trackParser.bind(undefined, true), trackSpecificRouter);
 	trackSpecificRouter.get('/', getTrack);
-	trackSpecificRouter.patch('/', updateTrack);
+	trackSpecificRouter.patch('/', auth, updateTrack);
 
 	return router;
 }
