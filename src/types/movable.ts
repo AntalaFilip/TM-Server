@@ -7,13 +7,18 @@ type MovableLocation = {
 	track?: StationTrack,
 };
 
+type MovableLocationMeta = {
+	stationId: string,
+	trackId?: string,
+};
+
 type MovableType = 'wagon' | 'locomotive';
 
 interface MovableOptions extends ResourceOptions {
 	maxSpeed?: number,
 	length?: number,
 	couplerType: string,
-	currentLocationId?: string,
+	currentLocation?: MovableLocationMeta,
 	model: string,
 	name?: string,
 	type?: MovableType,

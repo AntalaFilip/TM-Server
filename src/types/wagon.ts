@@ -26,7 +26,7 @@ class Wagon extends Movable {
 			couplerType: this.couplerType,
 			model: this.model,
 			wagonType: this.wagonType,
-			currentLocationId: this.currentLocation?.id,
+			currentLocation: this.currentLocation ? { stationId: this.currentLocation?.station?.id, trackId: this.currentLocation?.track?.id } : null,
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,
