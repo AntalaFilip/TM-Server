@@ -49,7 +49,7 @@ function updateTrack(req: TMTrackRequest, res: Response) {
 	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 
 	const mdf = track.modify(data, user);
-	if (mdf) return res.status(200).send(track.metadata());
+	if (mdf) return getTrack(req, res);
 	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 }
 
@@ -117,7 +117,7 @@ async function updateStation(req: TMStationRequest, res: Response) {
 	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 
 	const mdf = station.modify(data, user);
-	if (mdf) return res.status(200).send(station.metadata());
+	if (mdf) return getStation(req, res);
 	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 }
 
