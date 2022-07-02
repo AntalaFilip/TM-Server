@@ -1,10 +1,16 @@
 import Movable, { MovableOptions } from "./movable";
+import User from "./user";
 
 type WagonType = 'passenger' | 'cargo';
 
 interface WagonOptions extends MovableOptions {
 	wagonType: WagonType,
 }
+
+function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
+	return toCheck === 'passenger' || toCheck === 'cargo';
+}
+
 
 class Wagon extends Movable {
 	private _wagonType: WagonType;
@@ -35,6 +41,23 @@ class Wagon extends Movable {
 			managerId: this.managerId,
 			type: this.type,
 		};
+	}
+
+	modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage movables', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+		if (checkWagonTypeValidity(data.wagonType)) {
+			this.wagonType = data.wagonType;
+			modified = true;
+		}
+
+		const mdf = this._modify(data, actor);
+
+		if (!modified && !mdf) return false;
+
+		return true;
 	}
 
 	static is(movable: Movable): movable is Wagon {
