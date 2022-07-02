@@ -2,6 +2,7 @@ import Collection from "@discordjs/collection";
 import Locomotive from "../types/locomotive";
 import Movable, { MovableOptions } from "../types/movable";
 import Realm from "../types/realm";
+import User from "../types/user";
 import Wagon, { WagonOptions } from "../types/wagon";
 import ResourceManager from "./ResourceManager";
 
@@ -23,7 +24,9 @@ class MovableManager extends ResourceManager {
 		});
 	}
 
-	async create(resource: Movable | MovableOptions): Promise<Movable> {
+	async create(resource: Movable | MovableOptions, actor?: User): Promise<Movable> {
+		if (actor && !actor.hasPermission('manage movables', this.realm)) throw new Error('No permission!');
+
 		if (!(resource instanceof Movable)) {
 			if (resource.type === 'locomotive') resource = new Locomotive(resource);
 			else if (resource.type === 'wagon') resource = new Wagon(resource as WagonOptions);
