@@ -66,4 +66,4 @@ class Wagon extends Movable {
 }
 
 export default Wagon;
-export { WagonOptions, WagonType };
+export { WagonOptions, WagonType, checkWagonTypeValidity };
