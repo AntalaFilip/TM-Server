@@ -102,10 +102,11 @@ async function createStation(req: TMRealmRequest, res: Response) {
 	const data = req.body;
 	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 	if (!data.name || typeof data.name != 'string') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTN-EBADPARAM-NAME` } } });
+	if (!data.short || typeof data.short != 'string') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTN-EBADPARAM-SHORT` } } });
 	if (!checkStationTypeValidity(data.stationType)) return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTSTN-EBADPARAM-STATIONTYPE` } } });
 
 
-	const station = await smgr.create({ realmId: realm.id, managerId: smgr.id, name: data.name, stationType: data.stationType }, user);
+	const station = await smgr.create({ realmId: realm.id, managerId: smgr.id, name: data.name, stationType: data.stationType, short: data.short }, user);
 	return res.status(201).send(station.metadata());
 }
 

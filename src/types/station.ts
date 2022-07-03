@@ -11,6 +11,7 @@ function checkStationTypeValidity(toCheck: unknown): toCheck is StationType {
 
 interface StationOptions extends ResourceOptions {
 	name: string,
+	short: string,
 	tracks?: StationTrack[],
 	stationType: StationType,
 	dispatcher?: User
@@ -22,6 +23,13 @@ class Station extends Resource {
 	private set name(name: string) {
 		this._name = name;
 		this.propertyChange(`name`, name);
+	}
+
+	private _short: string;
+	public get short() { return this._short }
+	private set short(short: string) {
+		this._short = short;
+		this.propertyChange(`short`, short);
 	}
 
 	private _stationType: StationType;
@@ -70,6 +78,7 @@ class Station extends Resource {
 	metadata(): StationOptions {
 		return {
 			name: this.name,
+			short: this.short,
 			managerId: this.managerId,
 			realmId: this.realmId,
 			id: this.id,
@@ -85,6 +94,10 @@ class Station extends Resource {
 
 		if (typeof data.name === 'string') {
 			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.short === 'string') {
+			this.short = data.short;
 			modified = true;
 		}
 		if (checkStationTypeValidity(data.stationType)) {
