@@ -3,7 +3,7 @@ import { authenticate } from "../../middleware/httpauth";
 import { TMRealmRequest } from "../../middleware/realmParser";
 import trainSetParser, { TMTrainSetRequest } from "../../middleware/trainSetParser";
 import Client from "../../types/client";
-import TrainSet from "../../types/trainset";
+import Movable from "../../types/movable";
 
 function createTrainSetRouter(client: Client) {
 	const router = Router();
@@ -49,8 +49,8 @@ async function createSet(req: TMRealmRequest, res: Response) {
 	const data = req.body;
 	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 	if (!data.name || typeof data.name != 'string') return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTST-EBADPARAM-NAME` } } });
-	if (!data.components || !Array.isArray(data.components) || data.components.every((c: unknown) => typeof c === 'string')) return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTST-EBADPARAM-COMPONENTS` } } });
-	const components = (data.components as Array<string>).map(c => mmgr.get(c)).filter(v => v instanceof TrainSet);
+	if (!data.components || !Array.isArray(data.components) || !data.components.every((c: unknown) => typeof c === 'string')) return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTST-EBADPARAM-COMPONENTS` } } });
+	const components = (data.components as Array<string>).map(c => mmgr.get(c)).filter(v => v instanceof Movable);
 	if (components.length != data.components.length) return res.status(400).send({ message: `Invalid IDs provided!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTST-ERESNOEXIST-COMPONENTS` } } });
 
 	const trainset = await smgr.create({ realmId: realm.id, managerId: smgr.id, name: data.name, components }, user);
