@@ -8,7 +8,7 @@ interface TrainSetOptions extends ResourceOptions {
 
 interface TrainSetOptionsMetadata extends ResourceOptions {
 	name: string,
-	components: MovableOptions[]
+	components: string[]
 }
 
 class TrainSet extends Resource {
@@ -38,7 +38,7 @@ class TrainSet extends Resource {
 			realmId: this.realmId,
 			id: this.id,
 			name: this.name,
-			components: this.components.map(c => c.metadata()),
+			components: this.components.map(c => c.id),
 		};
 	}
 
