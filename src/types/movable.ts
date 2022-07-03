@@ -91,6 +91,9 @@ abstract class Movable extends Resource {
 	/** The Station in which the object is currently located */
 	public get currentLocation() { return this._currentLocation; }
 	private set currentLocation(location: MovableLocation) {
+		// there can't be a track without a station as tracks are tied to stations :)
+		if (!location.station && location.track) location.track = null;
+
 		this._currentLocation = location;
 		this.propertyChange('currentLocation', this.currentLocation);
 	}
@@ -102,10 +105,6 @@ abstract class Movable extends Resource {
 		this.propertyChange('name', this.name);
 	}
 
-	/* private _currentStatus: number;
-	public get currentStatus() { return this._currentStatus };
-	private set currentStatus(status: number) { this._currentStatus = status }; */
-
 	constructor(type: MovableType, options: MovableOptions) {
 		super(type, options);
 
@@ -113,8 +112,9 @@ abstract class Movable extends Resource {
 		this._maxSpeed = options.maxSpeed;
 		this._length = options.length;
 		this._couplerType = options.couplerType;
-		// TODO: do location cool things
-		this._currentLocation = null;
+
+		const curSt = this.realm.stationManager.get(options.currentLocation?.stationId);
+		this._currentLocation = curSt && { station: curSt, track: curSt.tracks.get(options.currentLocation?.trackId) };
 
 		this._name = options.name;
 	}
@@ -145,8 +145,14 @@ abstract class Movable extends Resource {
 			this.couplerType = data.couplerType;
 			modified = true;
 		}
-		// TODO: currentLocation changes
-
+		if (typeof data.currentStationId === 'string' && this.realm.stationManager.get(data.currentStationId)) {
+			this.currentLocation = { ...this.currentLocation, station: this.realm.stationManager.get(data.currentStationId) };
+			modified = true;
+		}
+		if (typeof data.currentTrackId === 'string' && this.currentLocation?.station.tracks.get(data.currentTrackId)) {
+			this.currentLocation = { ...this.currentLocation, track: this.currentLocation.station.tracks.get(data.currentTrackId) };
+			modified = true;
+		}
 
 		if (!modified) return false;
 
