@@ -32,7 +32,7 @@ class Train extends Resource {
 		this._locomotive = this.locomotive;
 		const trueTimestamp = this.realm.timeManager.trueMs;
 		// TODO: what about paused time?
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:locomotives`), "id", loco?.id, "type", loco?.type, "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:locomotives`), "*", "id", loco?.id, "type", loco?.type, "time", trueTimestamp);
 		this.propertyChange(`locomotive`, loco);
 	}
 
@@ -42,7 +42,7 @@ class Train extends Resource {
 		this._location = newloc;
 		// TODO: paused time?
 		const trueTimestamp = this.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:locations`), "id", newloc?.station.id, "type", newloc?.station.type, "track", newloc?.track?.id, "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:locations`), "*", "id", newloc?.station.id, "type", newloc?.station.type, "track", newloc?.track?.id, "time", trueTimestamp);
 		this.propertyChange(`location`, newloc, true);
 	}
 
@@ -51,7 +51,7 @@ class Train extends Resource {
 	private set state(newState: TrainState) {
 		this._state = newState;
 		const trueTimestamp = this.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:states`), "data", newState, "type", 'trainState', "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:states`), "*", "data", newState, "type", 'trainState', "time", trueTimestamp);
 		this.propertyChange(`state`, newState, true);
 	}
 
@@ -62,7 +62,7 @@ class Train extends Resource {
 	private set currentEntryId(id: string) {
 		this._currentEntryId = id;
 		const trueTimestamp = this.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:entries`), "id", id, "type", "timetableentry", "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:entries`), "*", "id", id, "type", "timetableentry", "time", trueTimestamp);
 		this.propertyChange(`currentEntryId`, id, true);
 	}
 	public get currentEntry() { return this.allEntries?.find(e => e.id === this.currentEntryId); }
@@ -127,7 +127,7 @@ class Train extends Resource {
 		this.trainSets.length = 0;
 		this.trainSets.push(...sets);
 		const trueTimestamp = this.manager.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:trainsets`), "ids", JSON.stringify(sets.map(s => s.id)), "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:trainsets`), "*", "ids", JSON.stringify(sets.map(s => s.id)), "time", trueTimestamp);
 		this.propertyChange(`trainSets`, sets, true);
 	}
 

@@ -18,7 +18,7 @@ class Locomotive extends Movable {
 	private set controller(ctl: User) {
 		this._controller = ctl;
 		const trueTimestamp = this.manager.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:controllers`), "id", ctl?.id, "type", ctl?.type, "time", trueTimestamp);
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:controllers`), "*", "id", ctl?.id, "type", ctl?.type, "time", trueTimestamp);
 		this.propertyChange(`controller`, ctl, true);
 	}
 
@@ -26,7 +26,7 @@ class Locomotive extends Movable {
 		return {
 			couplerType: this.couplerType,
 			model: this.model,
-			currentLocation: this.currentLocation ? { stationId: this.currentLocation?.station?.id, trackId: this.currentLocation?.track?.id } : null,
+			currentLocation: this.currentLocation && { stationId: this.currentLocation?.station?.id, trackId: this.currentLocation?.track?.id },
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,

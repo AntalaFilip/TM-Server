@@ -21,7 +21,7 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 	if (duplicate) return res.status(400).send({ message: `A user with this username already exists`, error: { code: 'EUSERNAMEINUSE' } });
 
 	const created = await client.userManager.create({ name, username, passwordHash: User.hashPassword(password), managerId: client.userManager.id, realmId: null });
-	await client.db.redis.xadd(`audit`, "create user", authUser.id);
+	await client.db.redis.xadd(`audit`, "*", "create user", authUser.id);
 
 	const toReturn = created.metadata();
 	delete toReturn.passwordHash;
