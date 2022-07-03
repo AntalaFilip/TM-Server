@@ -52,7 +52,8 @@ class TimetableManager extends ResourceManager {
 	}
 
 	private async createAllFromStore() {
-		const allTimetableIds = await this.db.redis.keys(`${this.id}*:`);
+		const prefix = process.env.REDIS_PREFIX;
+		const allTimetableIds = (await this.db.redis.keys(`${prefix}${this.id}:*[^:]`)).map(k => k.slice(prefix.length));
 		if (!allTimetableIds || allTimetableIds.length === 0) return;
 
 		const allTimetables = await this.db.redis.mget(allTimetableIds);
