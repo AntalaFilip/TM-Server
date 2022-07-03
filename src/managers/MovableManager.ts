@@ -30,7 +30,7 @@ class MovableManager extends ResourceManager {
 		if (!(resource instanceof Movable)) {
 			if (resource.type === 'locomotive') resource = new Locomotive(resource);
 			else if (resource.type === 'wagon') resource = new Wagon(resource as WagonOptions);
-			return;
+			else return;
 		}
 
 		if (this.movables.has(resource.id)) throw new Error(`This Movable is already created!`);
