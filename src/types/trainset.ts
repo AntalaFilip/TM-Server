@@ -1,5 +1,6 @@
-import Movable, { MovableOptions } from "./movable";
+import Movable from "./movable";
 import Resource, { ResourceOptions } from "./resource";
+import User from "./user";
 
 interface TrainSetOptions extends ResourceOptions {
 	name: string,
@@ -30,6 +31,28 @@ class TrainSet extends Resource {
 		this.components.push(...components);
 
 		if (!noSave) await this.save();
+	}
+
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage trains', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (Array.isArray(data.components) && data.components.every(c => typeof c === 'string')) {
+			const components = data.components.map(c => this.realm.movableManager.get(c)).filter(c => c instanceof Movable);
+			if (components.length === data.components.length)  {
+				await this.newComponents(components);
+				modified = true;
+			}
+		}
+
+		if (!modified) return false;
+		return true;
 	}
 
 	metadata(): TrainSetOptionsMetadata {
