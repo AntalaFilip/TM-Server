@@ -61,7 +61,7 @@ async function createLocomotive(req: TMRealmRequest, res: Response) {
 
 	if (data.controllerId && !realm.client.userManager.get(data.controllerId)) return res.status(400).send({ message: `Invalid controller id!`, error: { code: `EBADREQUEST`, extension: { code: `CRTLCM-EBADPARAM-CONTROLLERID` } } });
 
-	const locomotive = await realm.movableManager.create({ ...data, type: 'locomotive' }, user) as Locomotive;
+	const locomotive = await realm.movableManager.create({ ...data, type: 'locomotive', realmId: realm.id, managerId: realm.movableManager.id }, user) as Locomotive;
 	res.status(201).send(locomotive.metadata());
 }
 
@@ -73,8 +73,9 @@ function checkMovableParams(data: Record<string, unknown>, res: Response) {
 	if (data.maxSpeed && typeof data.maxSpeed != 'number') return badReturn(`CRTMVB-EBADPARAM-MAXSPEED`);
 	if (data.length && typeof data.length != 'number') return badReturn(`CRTMVB-EBADPARAM-LENGTH`);
 	if (typeof data.couplerType != 'string') return badReturn(`CRTMVB-EBADPARAM-COUPLERTYPE`);
+	if (typeof data.model != 'string') return badReturn(`CRTMVB-EBADPARAM-MODEL`);
 	// if (data.currentLocationMeta && checkMovableLocationMetaExistence(data.currentLocationMeta, realm))
-	if (data.name && typeof data.name != 'string') return badReturn(`CRTMVB-EBADPARAM-NAME`)
+	if (data.name && typeof data.name != 'string') return badReturn(`CRTMVB-EBADPARAM-NAME`);
 
 	return true;
 }
@@ -133,7 +134,7 @@ async function createWagon(req: TMRealmRequest, res: Response) {
 
 	if (!checkWagonTypeValidity(data.wagonType)) return res.status(400).send({ message: `Missing or invalid parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTWGN-EBADPARAM-WAGONTYPE` } } });
 
-	const wagon = await realm.movableManager.create({ ...data, type: 'wagon' }, user) as Wagon;
+	const wagon = await realm.movableManager.create({ ...data, type: 'wagon', realmId: realm.id, managerId: realm.movableManager.id }, user) as Wagon;
 	res.status(201).send(wagon.metadata());
 }
 
