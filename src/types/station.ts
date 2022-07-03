@@ -104,8 +104,8 @@ class Station extends Resource {
 			this.stationType = data.stationType;
 			modified = true;
 		}
-		if (typeof data.dispatcher === 'string' && this.realm.client.userManager.get(data.dispatcher)) {
-			this.dispatcher = this.realm.client.userManager.get(data.dispatcher);
+		if (typeof data.dispatcherId === 'string' && this.realm.client.userManager.get(data.dispatcherId)) {
+			this.dispatcher = this.realm.client.userManager.get(data.dispatcherId);
 			modified = true;
 		}
 
