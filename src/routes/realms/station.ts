@@ -90,7 +90,7 @@ function getStation(req: TMStationRequest, res: Response) {
 	const data = station.metadata();
 	const trains = station.trains.map(m => m.metadata());
 
-	return res.status(200).send({ ...data, trains });
+	return res.status(200).send({ ...data, trains, dispatcher: station.dispatcher?.publicMetadata() });
 }
 
 async function createStation(req: TMRealmRequest, res: Response) {
