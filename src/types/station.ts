@@ -43,7 +43,8 @@ class Station extends Resource {
 	public get dispatcher() { return this._dispatcher; }
 	private set dispatcher(disp: User) {
 		this._dispatcher = disp;
-		// TODO: stream
+		const trueTimestamp = this.realm.timeManager.trueMs;
+		this.manager.db.redis.xadd(this.manager.key(`${this.id}:dispatchers`), "*", "id", disp?.id, "type", disp?.type, "time", trueTimestamp);
 		this.propertyChange(`dispatcher`, disp);
 	}
 
@@ -56,6 +57,8 @@ class Station extends Resource {
 
 		this._name = options.name;
 		this._stationType = options.stationType;
+
+		// TODO: sanity check
 		this._dispatcher = options.dispatcher;
 		this.tracks = new Collection(options.tracks?.map(v => [v.id, v]));
 	}
