@@ -35,7 +35,7 @@ function getLocomotive(req: TMLocoRequest, res: Response) {
 	const loco = req.locomotive;
 	const meta = loco.metadata();
 
-	return res.send({ ...meta, currentLocation: loco.currentLocation, controller: loco.controller });
+	return res.send({ ...meta, currentLocation: loco.currentLocation && Object.fromEntries(Object.entries(loco.currentLocation).map(([k, v]) => [k, v?.metadata() ?? v])), controller: loco.controller?.publicMetadata() });
 }
 
 function updateLocomotive(req: TMLocoRequest, res: Response) {
@@ -108,7 +108,7 @@ function getWagon(req: TMWagonRequest, res: Response) {
 	const wagon = req.wagon;
 	const meta = wagon.metadata();
 
-	return res.send({ ...meta, currentLocation: wagon.currentLocation });
+	return res.send({ ...meta, currentLocation: wagon.currentLocation && Object.fromEntries(Object.entries(wagon.currentLocation).map(([k, v]) => [k, v?.metadata() ?? v])) });
 }
 
 function updateWagon(req: TMWagonRequest, res: Response) {
