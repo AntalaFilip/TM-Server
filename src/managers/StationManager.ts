@@ -54,7 +54,7 @@ class StationManager extends ResourceManager {
 
 	private async createAllFromStore() {
 		const prefix = process.env.REDIS_PREFIX;
-		const allStationIds = (await this.db.redis.keys(`${prefix}${this.id}:*[^:]`)).map(k => k.slice(prefix.length));
+		const allStationIds = (await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)).map(k => k.slice(prefix.length));
 		if (!allStationIds || allStationIds.length === 0) return;
 
 		const allStations = await this.db.redis.mget(allStationIds);

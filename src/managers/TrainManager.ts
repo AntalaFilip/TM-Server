@@ -47,7 +47,7 @@ class TrainManager extends ResourceManager {
 
 	private async createAllFromStore() {
 		const prefix = process.env.REDIS_PREFIX;
-		const allTrainIds = (await this.db.redis.keys(`${prefix}${this.id}:*[^:]`)).map(k => k.slice(prefix.length));
+		const allTrainIds = (await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)).map(k => k.slice(prefix.length));
 		if (!allTrainIds || allTrainIds.length === 0) return;
 
 		const allTrains = await this.db.redis.mget(allTrainIds);
