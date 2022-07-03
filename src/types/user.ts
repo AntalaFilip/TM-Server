@@ -4,13 +4,17 @@ import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
 import Realm from "./realm";
 
-interface UserOptions extends ResourceOptions {
-	name: string,
-	username: string,
+interface UserOptions extends ResourceOptions, UserPublicData {
 	passwordHash?: string,
 	settings?: UserSettings,
-	disabled?: boolean,
 	realmId: null,
+}
+
+interface UserPublicData {
+	id?: string,
+	name: string,
+	username: string,
+	disabled?: boolean,
 	admin?: boolean,
 	permissions?: UserPermissionsMetadata,
 }
@@ -107,8 +111,26 @@ class User extends Resource {
 			settings: this.settings,
 			disabled: this.disabled,
 			admin: this.admin,
-			permissions: { global: this.permissions.global, realm: Array.from(this.permissions.realm.entries()) },
+			permissions: this.permissionMeta(),
 		};
+	}
+
+	publicMetadata(): UserPublicData {
+		return {
+			name: this.name,
+			username: this.username,
+			admin: this.admin,
+			disabled: this.disabled,
+			id: this.id,
+			permissions: this.permissionMeta(),
+		}
+	}
+
+	permissionMeta(): UserPermissionsMetadata {
+		return {
+			global: this.permissions?.global,
+			realm: Array.from(this.permissions?.realm.entries())
+		}
 	}
 
 	hasPermission(perm: Permission, realm?: Realm): boolean {
