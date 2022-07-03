@@ -1,5 +1,6 @@
-import Movable, { MovableOptions } from "./movable";
+import Movable from "./movable";
 import Resource, { ResourceOptions } from "./resource";
+import User from "./user";
 
 interface TrainSetOptions extends ResourceOptions {
 	name: string,
@@ -8,7 +9,7 @@ interface TrainSetOptions extends ResourceOptions {
 
 interface TrainSetOptionsMetadata extends ResourceOptions {
 	name: string,
-	components: MovableOptions[]
+	components: string[]
 }
 
 class TrainSet extends Resource {
@@ -32,13 +33,35 @@ class TrainSet extends Resource {
 		if (!noSave) await this.save();
 	}
 
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage trains', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (Array.isArray(data.components) && data.components.every(c => typeof c === 'string')) {
+			const components = data.components.map(c => this.realm.movableManager.get(c)).filter(c => c instanceof Movable);
+			if (components.length === data.components.length)  {
+				await this.newComponents(components);
+				modified = true;
+			}
+		}
+
+		if (!modified) return false;
+		return true;
+	}
+
 	metadata(): TrainSetOptionsMetadata {
 		return {
 			managerId: this.managerId,
 			realmId: this.realmId,
 			id: this.id,
 			name: this.name,
-			components: this.components.map(c => c.metadata()),
+			components: this.components.map(c => c.id),
 		};
 	}
 
