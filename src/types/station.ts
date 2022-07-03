@@ -121,10 +121,10 @@ class Station extends Resource {
 	 */
 	async save() {
 		// Add the base metadata
-		await this.manager.db.add(this.manager.key(this.id), this.metadata());
+		await this.manager.db.add(this.id, this.metadata());
 
 		// Add the track metadata
-		await this.manager.db.redis.hset(this.manager.key(`${this.id}:tracks`), this.tracks.mapValues(tr => JSON.stringify(tr.metadata())));
+		if (this.tracks.size > 0) await this.manager.db.redis.hset(this.manager.key(`${this.id}:tracks`), this.tracks.map(tr => [tr.id, JSON.stringify(tr.metadata())]));
 
 		return true;
 	}
