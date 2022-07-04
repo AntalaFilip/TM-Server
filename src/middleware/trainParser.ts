@@ -6,7 +6,7 @@ interface TMTrainRequest extends TMStationRequest {
 	train?: Train
 }
 
-function trainSetParser(reject = true, req: TMTrainRequest, res: Response, next: NextFunction) {
+function trainParser(reject = true, req: TMTrainRequest, res: Response, next: NextFunction) {
 	const realm = req.realm;
 	const trainId = req.params['train'];
 	if (!trainId && reject) return res.status(404).send({ message: `Missing train ID in request URL` });
@@ -17,5 +17,5 @@ function trainSetParser(reject = true, req: TMTrainRequest, res: Response, next:
 	next();
 }
 
-export default trainSetParser;
+export default trainParser;
 export { TMTrainRequest };
