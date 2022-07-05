@@ -104,6 +104,10 @@ class Train extends Resource {
 		this._location = options.location;
 	}
 
+	/**
+	 * careful, it throws!
+	 * @returns
+	 */
 	updateTrainState(newState: TrainState, override = false, ...extra: string[]) {
 		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
 		const prevState = this.state;
