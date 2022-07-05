@@ -80,9 +80,20 @@ async function updateTrain(req: TMTrainRequest, res: Response) {
 	const data = req.body;
 	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 
-	const mdf = await train.modify(data, user);
-	if (mdf) return getTrain(req, res);
-	else return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
+	try {
+		const mdf = await train.modify(data, user);
+		if (mdf) return getTrain(req, res);
+	}
+	catch (err) {
+		if (err instanceof Error) {
+			return res.status(400).send({ message: `An error has occurred`, error: { code: 'EGENERIC', message: err?.message } });
+		}
+		else {
+			return res.status(500).send();
+		}
+	}
+
+	return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 }
 
 function updateTrainState(req: TMTrainRequest, res: Response) {
@@ -103,7 +114,10 @@ function updateTrainState(req: TMTrainRequest, res: Response) {
 		return getTrain(req, res);
 	}
 	catch (err) {
-		return res.status(400).send({ message: `An error has occurred`, error: err });
+		if (err instanceof Error) {
+			return res.status(400).send({ message: `An error has occurred`, error: { code: `EGENERIC`, message: err.message } });
+		}
+		else return res.status(500).send();
 	}
 }
 
