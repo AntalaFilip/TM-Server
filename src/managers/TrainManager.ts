@@ -1,6 +1,7 @@
 import Collection from "@discordjs/collection";
 import Realm from "../types/realm";
 import Train, { TrainOptions } from "../types/train";
+import User from "../types/user";
 import ResourceManager from "./ResourceManager";
 
 class TrainManager extends ResourceManager {
@@ -32,7 +33,9 @@ class TrainManager extends ResourceManager {
 		return new Train(trainMeta);
 	}
 
-	async create(resource: Train | TrainOptions): Promise<Train> {
+	async create(resource: Train | TrainOptions, actor?: User): Promise<Train> {
+		if (actor && !actor.hasPermission('manage trains', this.realm)) throw new Error('No permission!');
+
 		if (!(resource instanceof Train)) {
 			resource = new Train(resource);
 		}
