@@ -175,9 +175,10 @@ class Train extends Resource {
 	}
 
 	public runStateChecks(override = false) {
+		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
 		// TODO: create nice errors
-		if (this.trainSets != this.currentEntry.sets && !override) throw new Error(`Train sets do not match!`);
-		if (this.locomotive != this.currentEntry.locomotive && !override) throw new Error(`Locomotives don't match!`);
+		if (this.trainSets != this.currentEntry?.sets && !override) throw new Error(`Train sets do not match!`);
+		if (this.locomotive != this.currentEntry?.locomotive && !override) throw new Error(`Locomotives don't match!`);
 
 		return true;
 	}
