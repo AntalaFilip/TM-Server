@@ -98,8 +98,13 @@ function updateTrainState(req: TMTrainRequest, res: Response) {
 	if (typeof override != 'undefined' && typeof override != 'boolean') return res.status(400).send({ message: `Invalid state`, error: { code: `EBADREQUEST` } });
 	if (otherTrackId && !train.location?.station?.tracks.get(otherTrackId)) return res.status(400).send({ message: `Invalid state`, error: { code: `EBADREQUEST` } });
 
-	train.updateTrainState(state, override, otherTrackId);
-	return getTrain(req, res);
+	try {
+		train.updateTrainState(state, override, otherTrackId);
+		return getTrain(req, res);
+	}
+	catch (err) {
+		return res.status(400).send({ message: `An error has occurred`, error: err });
+	}
 }
 
 function getTrainChecks(req: TMTrainRequest, res: Response) {
