@@ -1,5 +1,5 @@
 import Locomotive from "./locomotive";
-import { MovableLocation } from "./movable";
+import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
 import TrainSet from "./trainset";
 import User from "./user";
