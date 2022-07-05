@@ -2,6 +2,7 @@ import Locomotive from "./locomotive";
 import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
 import TrainSet from "./trainset";
+import User from "./user";
 
 interface TrainOptions extends ResourceOptions {
 	name: string,
@@ -137,6 +138,36 @@ class Train extends Resource {
 		}
 
 		this.state = newState;
+	}
+
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage trains', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.short === 'string') {
+			this.short = data.short;
+			modified = true;
+		}
+		if (typeof data.locomotiveId === 'string' && this.realm.movableManager.getLoco(data.locomotiveId)) {
+			this.locomotive = this.realm.movableManager.getLoco(data.locomotiveId);
+			modified = true;
+		}
+		if (Array.isArray(data.trainSetIds) && data.trainSetIds.every(c => typeof c === 'string')) {
+			const trainSets = data.trainSetIds.map(c => this.realm.trainSetManager.get(c)).filter(c => c instanceof TrainSet);
+			if (trainSets.length === data.trainSetIds.length)  {
+				await this.newTrainSets(trainSets);
+				modified = true;
+			}
+		}
+
+		if (!modified) return false;
+		return true;
 	}
 
 	public runStateChecks(override = false) {
