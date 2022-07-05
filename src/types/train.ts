@@ -25,6 +25,16 @@ interface TrainOptionsMetadata extends ResourceOptions {
 
 type TrainState = 'MISSING' | 'MOVING' | 'ARRIVED' | 'READY' | 'LEAVING';
 
+function checkTrainStateValidity(toCheck: unknown): toCheck is TrainState {
+	return (
+		toCheck === 'MISSING'
+		|| toCheck === 'MOVING'
+		|| toCheck === 'ARRIVED'
+		|| toCheck === 'READY'
+		|| toCheck === 'LEAVING'
+	);
+}
+
 class Train extends Resource {
 	public readonly trainSets: TrainSet[];
 
@@ -168,4 +178,4 @@ class Train extends Resource {
 }
 
 export default Train;
-export { TrainOptions, TrainState, TrainOptionsMetadata };
+export { TrainOptions, TrainState, TrainOptionsMetadata, checkTrainStateValidity };
