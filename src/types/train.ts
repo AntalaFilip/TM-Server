@@ -75,7 +75,7 @@ class Train extends Resource {
 		this.manager.db.redis.xadd(this.manager.key(`${this.id}:entries`), "*", "id", id, "type", "timetableentry", "time", trueTimestamp);
 		this.propertyChange(`currentEntryId`, id, true);
 	}
-	public get currentEntry() { return this.allEntries?.find(e => e.id === this.currentEntryId); }
+	public get currentEntry() { return this.allEntries?.find(e => e.id === this.currentEntryId) ?? this.allEntries[0]; }
 
 	public get nextEntry() { return this.allEntries[this.allEntries.indexOf(this.currentEntry) + 1] ?? this.allEntries[0]; }
 
