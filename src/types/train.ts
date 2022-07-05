@@ -160,10 +160,14 @@ class Train extends Resource {
 		}
 		if (Array.isArray(data.trainSetIds) && data.trainSetIds.every(c => typeof c === 'string')) {
 			const trainSets = data.trainSetIds.map(c => this.realm.trainSetManager.get(c)).filter(c => c instanceof TrainSet);
-			if (trainSets.length === data.trainSetIds.length)  {
+			if (trainSets.length === data.trainSetIds.length) {
 				await this.newTrainSets(trainSets);
 				modified = true;
 			}
+		}
+		if (checkTrainStateValidity(data.state)) {
+			this.updateTrainState(data.state, true);
+			modified = true;
 		}
 
 		if (!modified) return false;
