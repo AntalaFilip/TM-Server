@@ -65,9 +65,9 @@ async function createTrain(req: TMRealmRequest, res: Response) {
 	const locomotive = mmgr.getLoco(data.locomotiveId);
 	if (data.locomotiveId && !locomotive) return res.status(400).send({ message: `Invalid locomotive ID!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTRN-ERESNOEXIST-LOCOMOTIVEID` } } });
 
-	if (!data.trainSetIds || !Array.isArray(data.trainSetIds) || !data.trainSetIds.every((c: unknown) => typeof c === 'string')) return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTRN-EBADPARAM-TRAINSETIDS` } } });
-	const trainSets = (data.trainSetIds as Array<string>).map(c => smgr.get(c)).filter(v => v instanceof TrainSet);
-	if (trainSets.length != data.trainSetIds.length) return res.status(400).send({ message: `Invalid IDs provided!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTRN-ERESNOEXIST-TRAINSETIDS` } } });
+	if (data.trainSetIds && (!Array.isArray(data.trainSetIds) || !data.trainSetIds.every((c: unknown) => typeof c === 'string'))) return res.status(400).send({ message: `Missing parameters!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTRN-EBADPARAM-TRAINSETIDS` } } });
+	const trainSets = (data.trainSetIds as Array<string>)?.map(c => smgr.get(c))?.filter(v => v instanceof TrainSet);
+	if (trainSets?.length != data.trainSetIds?.length) return res.status(400).send({ message: `Invalid IDs provided!`, error: { code: `EBADREQUEST`, extension: { code: `CRTTRN-ERESNOEXIST-TRAINSETIDS` } } });
 
 	const train = await tmgr.create({ realmId: realm.id, managerId: tmgr.id, name: data.name, short: data.short, locomotive, state: 'MISSING', trainSets }, user);
 	return res.status(201).send(train.metadata());
