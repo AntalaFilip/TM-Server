@@ -92,9 +92,13 @@ function updateTrainState(req: TMTrainRequest, res: Response) {
 	if (Array.isArray(data) || typeof data === 'string') return res.status(400).send({ message: `Invalid data`, error: { code: `EBADREQUEST` } });
 
 	const state = data.state;
+	const override = data.override;
+	const otherTrackId = data.trackId;
 	if (!checkTrainStateValidity(state)) return res.status(400).send({ message: `Invalid state`, error: { code: `EBADREQUEST` } });
+	if (typeof override != 'undefined' && typeof override != 'boolean') return res.status(400).send({ message: `Invalid state`, error: { code: `EBADREQUEST` } });
+	if (otherTrackId && !train.location?.station?.tracks.get(otherTrackId)) return res.status(400).send({ message: `Invalid state`, error: { code: `EBADREQUEST` } });
 
-	train.updateTrainState(state);
+	train.updateTrainState(state, override, otherTrackId);
 	return getTrain(req, res);
 }
 
