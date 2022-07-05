@@ -129,7 +129,10 @@ function getTrainChecks(req: TMTrainRequest, res: Response) {
 	}
 	catch (err) {
 		// TODO: add internal error check after error refactoring
-		return res.status(200).send({ result: 'FAILURE', error: err });
+		if (err instanceof Error) {
+			return res.status(200).send({ result: 'FAILURE', error: { message: err?.message } });
+		}
+		else return res.status(500).send();
 	}
 }
 
