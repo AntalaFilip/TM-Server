@@ -5,6 +5,7 @@ import createRealmTimeRouter from "./time";
 import createStationRouter from "./station";
 import { createLocomotiveRouter, createWagonRouter } from "./movable";
 import createTrainSetRouter from "./trainset";
+import createTrainRouter from "./train";
 
 function createRealmsRouter(client: Client) {
 	const mainRouter = Express.Router();
@@ -15,6 +16,7 @@ function createRealmsRouter(client: Client) {
 	const locoRouter = createLocomotiveRouter(client);
 	const wagonRouter = createWagonRouter(client);
 	const trainSetRouter = createTrainSetRouter(client);
+	const trainRouter = createTrainRouter(client);
 
 	// mainRouter.use('/');
 	mainRouter.use('/:realm', realmParser.bind(undefined, true, client), realmRouter);
@@ -22,7 +24,7 @@ function createRealmsRouter(client: Client) {
 	// realmRouter.use('/');
 	realmRouter.use('/time', timeRouter);
 	realmRouter.use('/stations', stationRouter);
-	// realmRouter.use('/trains');
+	realmRouter.use('/trains', trainRouter);
 	realmRouter.use('/trainsets', trainSetRouter);
 	realmRouter.use('/locomotives', locoRouter);
 	realmRouter.use('/wagons', wagonRouter);
