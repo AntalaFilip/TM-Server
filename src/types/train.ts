@@ -1,5 +1,5 @@
 import Locomotive from "./locomotive";
-import { MovableLocation } from "./movable";
+import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
 import TrainSet from "./trainset";
 
@@ -10,7 +10,17 @@ interface TrainOptions extends ResourceOptions {
 	trainSets?: TrainSet[],
 	location?: MovableLocation,
 	state?: TrainState,
-	currentEntryId: string,
+	currentEntryId?: string,
+}
+
+interface TrainOptionsMetadata extends ResourceOptions {
+	name: string,
+	short: string,
+	locomotiveId?: string,
+	trainSetIds?: string[],
+	location?: MovableLocationMeta,
+	state?: TrainState,
+	currentEntryId?: string,
 }
 
 type TrainState = 'MISSING' | 'MOVING' | 'ARRIVED' | 'READY' | 'LEAVING';
@@ -131,7 +141,7 @@ class Train extends Resource {
 		this.propertyChange(`trainSets`, sets, true);
 	}
 
-	metadata(): TrainOptions {
+	metadata(): TrainOptionsMetadata {
 		return {
 			managerId: this.managerId,
 			realmId: this.realmId,
@@ -139,6 +149,10 @@ class Train extends Resource {
 			short: this.short,
 			id: this.id,
 			currentEntryId: this.currentEntryId,
+			location: this.location && { stationId: this.location?.station?.id, trackId: this.location?.track?.id },
+			locomotiveId: this.locomotive?.id,
+			trainSetIds: this.trainSets.map(t => t.id),
+			state: this.state,
 		};
 	}
 
@@ -150,4 +164,4 @@ class Train extends Resource {
 }
 
 export default Train;
-export { TrainOptions, TrainState };
+export { TrainOptions, TrainState, TrainOptionsMetadata };
