@@ -1,7 +1,8 @@
 import Locomotive from "./locomotive";
-import { MovableLocation } from "./movable";
+import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
 import TrainSet from "./trainset";
+import User from "./user";
 
 interface TrainOptions extends ResourceOptions {
 	name: string,
@@ -10,10 +11,30 @@ interface TrainOptions extends ResourceOptions {
 	trainSets?: TrainSet[],
 	location?: MovableLocation,
 	state?: TrainState,
-	currentEntryId: string,
+	currentEntryId?: string,
+}
+
+interface TrainOptionsMetadata extends ResourceOptions {
+	name: string,
+	short: string,
+	locomotiveId?: string,
+	trainSetIds?: string[],
+	location?: MovableLocationMeta,
+	state?: TrainState,
+	currentEntryId?: string,
 }
 
 type TrainState = 'MISSING' | 'MOVING' | 'ARRIVED' | 'READY' | 'LEAVING';
+
+function checkTrainStateValidity(toCheck: unknown): toCheck is TrainState {
+	return (
+		toCheck === 'MISSING'
+		|| toCheck === 'MOVING'
+		|| toCheck === 'ARRIVED'
+		|| toCheck === 'READY'
+		|| toCheck === 'LEAVING'
+	);
+}
 
 class Train extends Resource {
 	public readonly trainSets: TrainSet[];
@@ -65,7 +86,7 @@ class Train extends Resource {
 		this.manager.db.redis.xadd(this.manager.key(`${this.id}:entries`), "*", "id", id, "type", "timetableentry", "time", trueTimestamp);
 		this.propertyChange(`currentEntryId`, id, true);
 	}
-	public get currentEntry() { return this.allEntries?.find(e => e.id === this.currentEntryId); }
+	public get currentEntry() { return this.allEntries?.find(e => e.id === this.currentEntryId) ?? this.allEntries[0]; }
 
 	public get nextEntry() { return this.allEntries[this.allEntries.indexOf(this.currentEntry) + 1] ?? this.allEntries[0]; }
 
@@ -83,6 +104,10 @@ class Train extends Resource {
 		this._location = options.location;
 	}
 
+	/**
+	 * careful, it throws!
+	 * @returns
+	 */
 	updateTrainState(newState: TrainState, override = false, ...extra: string[]) {
 		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
 		const prevState = this.state;
@@ -115,10 +140,45 @@ class Train extends Resource {
 		this.state = newState;
 	}
 
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage trains', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.short === 'string') {
+			this.short = data.short;
+			modified = true;
+		}
+		if (typeof data.locomotiveId === 'string' && this.realm.movableManager.getLoco(data.locomotiveId)) {
+			this.locomotive = this.realm.movableManager.getLoco(data.locomotiveId);
+			modified = true;
+		}
+		if (Array.isArray(data.trainSetIds) && data.trainSetIds.every(c => typeof c === 'string')) {
+			const trainSets = data.trainSetIds.map(c => this.realm.trainSetManager.get(c)).filter(c => c instanceof TrainSet);
+			if (trainSets.length === data.trainSetIds.length) {
+				await this.newTrainSets(trainSets);
+				modified = true;
+			}
+		}
+		if (checkTrainStateValidity(data.state)) {
+			this.updateTrainState(data.state, true);
+			modified = true;
+		}
+
+		if (!modified) return false;
+		return true;
+	}
+
 	public runStateChecks(override = false) {
+		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
 		// TODO: create nice errors
-		if (this.trainSets != this.currentEntry.sets && !override) throw new Error(`Train sets do not match!`);
-		if (this.locomotive != this.currentEntry.locomotive && !override) throw new Error(`Locomotives don't match!`);
+		if (this.trainSets != this.currentEntry?.sets && !override) throw new Error(`Train sets do not match!`);
+		if (this.locomotive != this.currentEntry?.locomotive && !override) throw new Error(`Locomotives don't match!`);
 
 		return true;
 	}
@@ -131,7 +191,7 @@ class Train extends Resource {
 		this.propertyChange(`trainSets`, sets, true);
 	}
 
-	metadata(): TrainOptions {
+	metadata(): TrainOptionsMetadata {
 		return {
 			managerId: this.managerId,
 			realmId: this.realmId,
@@ -139,6 +199,10 @@ class Train extends Resource {
 			short: this.short,
 			id: this.id,
 			currentEntryId: this.currentEntryId,
+			location: this.location && { stationId: this.location?.station?.id, trackId: this.location?.track?.id },
+			locomotiveId: this.locomotive?.id,
+			trainSetIds: this.trainSets.map(t => t.id),
+			state: this.state,
 		};
 	}
 
@@ -150,4 +214,4 @@ class Train extends Resource {
 }
 
 export default Train;
-export { TrainOptions, TrainState };
+export { TrainOptions, TrainState, TrainOptionsMetadata, checkTrainStateValidity };

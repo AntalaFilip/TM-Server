@@ -168,4 +168,4 @@ abstract class Movable extends Resource {
 }
 
 export default Movable;
-export { MovableOptions, MovableLocation, checkMovableLocationMetaExistence, checkMovableLocationMetaValidity };
+export { MovableOptions, MovableLocation, checkMovableLocationMetaExistence, checkMovableLocationMetaValidity, MovableLocationMeta };
