@@ -4,13 +4,13 @@ import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
 import Realm from "./realm";
 
-interface UserOptions extends ResourceOptions, UserPublicData {
+interface UserOptions extends UserPublicData {
 	passwordHash?: string,
 	settings?: UserSettings,
 	realmId: null,
 }
 
-interface UserPublicData {
+interface UserPublicData extends ResourceOptions {
 	id?: string,
 	name: string,
 	username: string,
