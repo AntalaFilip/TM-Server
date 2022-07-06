@@ -43,6 +43,12 @@ class MovableManager extends ResourceManager {
 	get(id: string): Movable {
 		return this.movables.get(id);
 	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.movables.map(m => m.publicMetadata());
+	}
 
 	getLoco(id: string): Locomotive {
 		const obj = this.get(id);

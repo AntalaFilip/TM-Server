@@ -26,6 +26,12 @@ class StationManager extends ResourceManager {
 	get(id: string): Station {
 		return this.stations.get(id);
 	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.stations.map(s => s.publicMetadata());
+	}
 
 	async create(resource: Station | StationOptions, actor?: User): Promise<Station> {
 		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');

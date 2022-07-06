@@ -25,6 +25,12 @@ class TimetableManager extends ResourceManager {
 	get(id: string): Timetable {
 		return this.timetables.get(id);
 	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.timetables.map(tt => tt.publicMetadata());
+	}
 
 	async fromResourceIdentifier(fullId: string): Promise<Timetable> {
 		if (!await this.db.redis.exists(fullId)) return;

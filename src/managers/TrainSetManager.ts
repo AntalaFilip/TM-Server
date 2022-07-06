@@ -25,6 +25,12 @@ class TrainSetManager extends ResourceManager {
 	get(id: string): TrainSet {
 		return this.trainsets.get(id);
 	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.trainsets.map(ts => ts.publicMetadata());
+	}
 
 	async create(resource: TrainSet | TrainSetOptions, actor?: User): Promise<TrainSet> {
 		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');

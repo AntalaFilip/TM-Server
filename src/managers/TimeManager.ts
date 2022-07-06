@@ -117,6 +117,8 @@ class TimeManager extends BaseManager {
 	}
 
 	get(): null { return null }
+	getOne(): null { return null }
+	getAll() { return this.metadata() }
 
 	fromResourceIdentifier(): null { return null }
 

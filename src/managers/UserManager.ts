@@ -42,6 +42,12 @@ class UserManager extends BaseManager implements ResourceData {
 	get(id: string) {
 		return this.users.get(id);
 	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.users.map(u => u.publicMetadata());
+	}
 
 	async create(resource: User | UserOptions): Promise<User> {
 		if (!(resource instanceof User)) {

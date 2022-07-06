@@ -50,6 +50,17 @@ class Client implements ResourceData {
 		});
 	}
 
+	get(id: string): Realm {
+
+		return this.realms.get(id);
+	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.realms.map(r => r.publicMetadata());
+	}
+
 	private async createAllFromStore() {
 		const allRealms = await this.db.redis.hgetall('realms');
 		const arr = Object.entries(allRealms);
