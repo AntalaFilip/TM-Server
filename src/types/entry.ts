@@ -142,6 +142,7 @@ class TimetableEntry extends Resource {
 			};
 			this.times.push(set);
 		}
+		this.current = this.times[1];
 
 		return this.times.length;
 	}
