@@ -183,6 +183,15 @@ class Train extends Resource {
 		return true;
 	}
 
+	public stateChecksPassing() {
+		try {
+			return this.runStateChecks();
+		}
+		catch (err) {
+			return false;
+		}
+	}
+
 	async newTrainSets(sets: TrainSet[]) {
 		this.trainSets.length = 0;
 		this.trainSets.push(...sets);
