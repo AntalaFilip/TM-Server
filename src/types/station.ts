@@ -89,6 +89,24 @@ class Station extends Resource {
 		};
 	}
 
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			dispatcherId: this.dispatcher?.id,
+			trackIds: this.tracks.map(t => t.id),
+			trainIds: this.trains.map(t => t.id),
+		};
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			dispatcher: this.dispatcher?.publicMetadata(),
+			tracks: this.tracks.map(t => t.publicMetadata()),
+			trains: this.trains.map(t => t.publicMetadata()),
+		};
+	}
+
 	modify(data: Record<string, unknown>, actor: User) {
 		if (!actor.hasPermission('manage stations', this.realm)) throw new Error(`No permission`);
 		let modified = false;

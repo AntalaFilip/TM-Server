@@ -124,6 +124,13 @@ class User extends Resource {
 			disabled: this.disabled,
 			id: this.id,
 			permissions: this.permissionMeta(),
+			managerId: this.managerId,
+			realmId: this.realmId,
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.publicMetadata(),
 		}
 	}
 

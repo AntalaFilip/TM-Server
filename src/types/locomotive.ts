@@ -37,6 +37,21 @@ class Locomotive extends Movable {
 		};
 	}
 
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			controllerId: this.controller?.id,
+		}
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			currentLocation: this.currentLocation && Object.fromEntries(Object.entries(this.currentLocation).map(([k, v]) => [k, v.publicMetadata()])),
+			controller: this.controller?.publicMetadata(),
+		}
+	}
+
 	modify(data: Record<string, unknown>, actor: User) {
 		if (!actor.hasPermission('manage movables', this.realm)) throw new Error(`No permission`);
 		let modified = false;

@@ -38,6 +38,8 @@ abstract class Resource {
 
 	abstract save(): boolean | Promise<boolean>;
 	abstract metadata(): ResourceOptions;
+	abstract publicMetadata(): ResourceOptions;
+	abstract fullMetadata(): ResourceOptions;
 }
 
 export default Resource;

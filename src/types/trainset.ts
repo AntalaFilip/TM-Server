@@ -64,6 +64,17 @@ class TrainSet extends Resource {
 			componentIds: this.components.map(c => c.id),
 		};
 	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			components: this.components.map(m => m.publicMetadata()),
+		}
+	}
 
 	async save(): Promise<boolean> {
 		await this.manager.db.redis.hset(this.managerId, [this.id, JSON.stringify(this.metadata())]);

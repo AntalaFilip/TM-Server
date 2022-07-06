@@ -214,6 +214,24 @@ class Train extends Resource {
 			state: this.state,
 		};
 	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			checks: this.stateChecksPassing(),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			checks: this.stateChecksPassing(),
+			currentEntry: this.currentEntry?.publicMetadata(),
+			nextEntry: this.nextEntry?.publicMetadata(),
+			location: this.location && Object.fromEntries(Object.entries(this.location).map(([k, v]) => [k, v.publicMetadata()])),
+			locomotive: this.locomotive?.publicMetadata(),
+			trainSets: this.trainSets.map(t => t.publicMetadata()),
+			arrDepSet: this.arrDepSet,
+		}
+	}
 
 	async save(): Promise<boolean> {
 		await this.manager.db.add(this.id, this.metadata());

@@ -117,6 +117,20 @@ class Realm extends Resource {
 		};
 	}
 
+	publicMetadata() {
+		return {
+			...this.metadata(),
+		}
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			owner: this.owner?.publicMetadata(),
+			activeTimetable: this.activeTimetable?.publicMetadata(),
+		}
+	}
+
 	async save(): Promise<boolean> {
 		await this.db.redis.hset('realms', [this.id, JSON.stringify(this.metadata())]);
 		return true;

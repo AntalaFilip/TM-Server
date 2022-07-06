@@ -214,6 +214,25 @@ class TimetableEntry extends Resource {
 		};
 	}
 
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			times: this.times.slice(0, 5)
+		}
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			locomotive: this.locomotive?.publicMetadata(),
+			station: this.station?.publicMetadata(),
+			track: this.track?.publicMetadata(),
+			train: this.train.publicMetadata(),
+			sets: this.sets.map(s => s.publicMetadata()),
+			times: this.times,
+		}
+	}
+
 	async save(): Promise<boolean> {
 		await this.manager.db.redis.hset(this.manager.key(`${this.timetable.id}:entries`), [this.id, JSON.stringify(this.metadata())]);
 

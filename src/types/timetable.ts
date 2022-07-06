@@ -61,6 +61,18 @@ class Timetable extends Resource {
 			genCount: this.genCount,
 		};
 	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			entryIds: this.entries.map(e => e.id),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			entries: this.entries.map(e => e.publicMetadata()),
+		}
+	}
 
 	async save(): Promise<boolean> {
 		await this.manager.db.add(`${this.id}:metadata`, JSON.stringify(this.metadata()));
