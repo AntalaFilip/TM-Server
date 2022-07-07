@@ -29,9 +29,9 @@ interface UserPermissionsMetadata {
 	realm: [string, number][],
 }
 
-type Permission = 'manage realm' | 'manage users' | 'manage stations' | 'manage movables' | 'manage time' | 'control time' | 'assign users' | 'manage trains';
+type Permission = 'manage realm' | 'manage users' | 'manage stations' | 'manage movables' | 'manage time' | 'control time' | 'assign users' | 'manage trains' | 'manage timetables';
 
-const PermissionMap = {
+const PermissionMap: Record<Permission, number> = {
 	'manage realm': 1 << 0,
 	'manage users': 1 << 1,
 	'manage stations': 1 << 2,
@@ -40,6 +40,7 @@ const PermissionMap = {
 	'control time': 1 << 5,
 	'assign users': 1 << 6,
 	'manage trains': 1 << 7,
+	'manage timetables': 1 << 8,
 };
 
 interface UserSettings {
