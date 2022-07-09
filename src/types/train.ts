@@ -116,7 +116,7 @@ class Train extends Resource {
 		if (newState === 'MOVING') {
 			this.location = null;
 			if (prevState != 'MISSING') {
-				this.currentEntry.genNewTime();
+				this.currentEntry.nextSet();
 				this.currentEntryId = this.nextEntry?.id;
 			}
 		}
