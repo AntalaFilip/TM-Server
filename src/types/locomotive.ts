@@ -7,7 +7,7 @@ interface LocomotiveOptions extends MovableOptions {
 
 class Locomotive extends Movable {
 	constructor(options: LocomotiveOptions) {
-		super('locomotive', options);
+		super('LOCOMOTIVE', options);
 
 		// TODO: sanity check
 		this._controller = options.controller;

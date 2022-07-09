@@ -1,14 +1,14 @@
 import Movable, { MovableOptions } from "./movable";
 import User from "./user";
 
-type WagonType = 'passenger' | 'cargo';
+type WagonType = 'PASSENGER' | 'CARGO';
 
 interface WagonOptions extends MovableOptions {
 	wagonType: WagonType,
 }
 
 function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
-	return toCheck === 'passenger' || toCheck === 'cargo';
+	return toCheck === 'PASSENGER' || toCheck === 'CARGO';
 }
 
 
@@ -22,7 +22,7 @@ class Wagon extends Movable {
 	}
 
 	constructor(options: WagonOptions) {
-		super('wagon', options);
+		super('WAGON', options);
 
 		this._wagonType = options.wagonType;
 	}

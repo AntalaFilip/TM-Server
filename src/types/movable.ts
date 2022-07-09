@@ -37,7 +37,7 @@ function checkMovableLocationMetaExistence(toCheck: Record<string, unknown>, rea
 	)
 }
 
-type MovableType = 'wagon' | 'locomotive';
+type MovableType = 'WAGON' | 'LOCOMOTIVE';
 
 interface MovableOptions extends ResourceOptions {
 	maxSpeed?: number,

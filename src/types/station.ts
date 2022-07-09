@@ -3,10 +3,10 @@ import StationTrack, { StationTrackOptions } from "./track";
 import Collection from '@discordjs/collection';
 import User from "./user";
 
-type StationType = 'station' | 'stop';
+type StationType = 'STATION' | 'STOP';
 
 function checkStationTypeValidity(toCheck: unknown): toCheck is StationType {
-	return toCheck === 'station' || toCheck === 'stop';
+	return toCheck === 'STATION' || toCheck === 'STOP';
 }
 
 interface StationOptions extends ResourceOptions {
@@ -56,6 +56,7 @@ class Station extends Resource {
 		super('station', options);
 
 		this._name = options.name;
+		this._short = options.short;
 		this._stationType = options.stationType;
 
 		// TODO: sanity check
@@ -98,12 +99,12 @@ class Station extends Resource {
 		};
 	}
 
+	// GraphQL metadata
 	fullMetadata() {
 		return {
 			...this.metadata(),
-			dispatcher: this.dispatcher?.publicMetadata(),
-			tracks: this.tracks.map(t => t.publicMetadata()),
-			trains: this.trains.map(t => t.publicMetadata()),
+			id: this.id,
+			_self: this
 		};
 	}
 

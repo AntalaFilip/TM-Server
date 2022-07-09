@@ -27,6 +27,8 @@ const typeDefs = gql`
 
 		realms: [Realm]!
 		realm(id: ID!): Realm
+
+		time(realm: ID!): RealmTime
 	}
 
 	type Mutation {
@@ -67,8 +69,8 @@ const typeDefs = gql`
 		id: ID!
 		realm: Realm!
 		name: String!
-		length: Int
 		usedForParking: Boolean!
+		length: Int
 		station: Station
 		currentTrain: Train
 	}
@@ -111,6 +113,7 @@ const typeDefs = gql`
 		arrival: Date!
 		departure: Date!
 		no: Int!
+		delay: Int!
 	}
 
 	type TrainSet {
@@ -225,6 +228,7 @@ const typeDefs = gql`
 		track: StationTrack!
 		sets: [TrainSet]!
 		times: [ArrDepSet]!
+		adsCount: Int!
 	}
 	input TimetableEntryInput {
 		train: ID!
@@ -280,6 +284,18 @@ const typeDefs = gql`
 	}
 	input RealmInput {
 		name: String!
+	}
+
+	type RealmTime {
+		startPoint: Int!
+		speedModifier: Int!
+		trueElapsed: Int!
+		elapsed: Int!
+		running: Boolean!
+	}
+	input RealmTime {
+		startPoint: Int!
+		speedModifier: Int!
 	}
 `
 

@@ -13,57 +13,60 @@ import Wagon from "./types/wagon";
 function createGQLResolvers(client: Client) {
 	const resolvers = {
 		Date: DateScalar,
+		TrainSet: {
+			trains: (parent: TrainSet) => parent.realm.trainManager.trains.filter(t => t.trainSets.includes(parent))
+		},
 		Query: {
 			stations: async (_p: never, a: { realm: string; }) => {
-				const realm = client.get(a.realm);
-				return realm?.stationManager.getAll();
+				return Array.from(client.get(a.realm)?.stationManager.stations.values() ?? []);
 			},
 			station: async (_p: never, a: { realm: string; id: string; }) => {
-				const realm = client.get(a.realm);
-				return realm?.stationManager.getOne(a.id);
+				return client.get(a.realm)?.stationManager.get(a.id);
 			},
 			trains: async (_p: never, a: { realm: string; }) => {
-				const realm = client.get(a.realm);
-				return realm?.trainManager.getAll();
+				return Array.from(client.get(a.realm)?.trainManager.trains.values() ?? []);
 			},
 			train: async (_p: never, a: { realm: string; id: string; }) => {
-				return client.get(a.realm)?.trainManager.getOne(a.id);
+				return client.get(a.realm)?.trainManager.get(a.id);
 			},
 			trainSets: async (_p: never, a: { realm: string; }) => {
-				return client.get(a.realm)?.trainSetManager.getAll();
+				return Array.from(client.get(a.realm)?.trainSetManager.trainsets.values() ?? []);
 			},
 			trainSet: async (_p: never, a: { realm: string; id: string; }) => {
-				return client.get(a.realm)?.trainSetManager.getOne(a.id);
+				return client.get(a.realm)?.trainSetManager.get(a.id);
 			},
 			locomotives: async (_p: never, a: { realm: string; }) => {
-				return client.get(a.realm)?.movableManager.movables.filter(m => m instanceof Locomotive).map(l => l.fullMetadata());
+				return Array.from(client.get(a.realm)?.movableManager.movables.filter(m => m instanceof Locomotive).values() ?? []);
 			},
 			locomotive: async (_p: never, a: { realm: string; id: string; }) => {
-				return client.get(a.realm)?.movableManager.getLoco(a.id)?.fullMetadata();
+				return client.get(a.realm)?.movableManager.getLoco(a.id);
 			},
 			wagons: async (_p: never, a: { realm: string; }) => {
-				return client.get(a.realm)?.movableManager.movables.filter(m => m instanceof Wagon).map(w => w.fullMetadata());
+				return Array.from(client.get(a.realm)?.movableManager.movables.filter(m => m instanceof Wagon).values() ?? []);
 			},
 			wagon: async (_p: never, a: { realm: string; id: string; }) => {
-				return client.get(a.realm)?.movableManager.getWagon(a.id)?.fullMetadata();
+				return client.get(a.realm)?.movableManager.getWagon(a.id);
 			},
 			timetables: async (_p: never, a: { realm: string; }) => {
-				return client.get(a.realm)?.timetableManager.getAll();
+				return Array.from(client.get(a.realm)?.timetableManager.timetables.values());
 			},
 			timetable: async (_p: never, a: { realm: string; id: string; }) => {
-				return client.get(a.realm)?.timetableManager.getOne(a.id);
+				return client.get(a.realm)?.timetableManager.get(a.id);
 			},
 			users: async () => {
-				return client.userManager.getAll();
+				return Array.from(client.userManager.users.values());
 			},
 			user: async (_p: never, a: { id: string; }) => {
-				return client.userManager.getOne(a.id);
+				return client.userManager.get(a.id);
 			},
 			realms: async () => {
-				return client.getAll();
+				return Array.from(client.realms.values());
 			},
 			realm: async (_p: never, a: { id: string; }) => {
-				return client.getOne(a.id);
+				return client.get(a.id);
+			},
+			time: async (_p: never, a: { realm: string }) => {
+				return client.get(a.realm)?.timeManager;
 			}
 		},
 		Mutation: {
@@ -72,8 +75,7 @@ function createGQLResolvers(client: Client) {
 				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
 				if (!c.user || !c.user.hasPermission('manage stations', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage stations` });
 
-				const station = await realm.stationManager.create({ ...a.input, realmId: realm.id, managerId: realm.stationManager.id }, c.user);
-				return station.fullMetadata();
+				return await realm.stationManager.create({ ...a.input, realmId: realm.id, managerId: realm.stationManager.id }, c.user);
 			},
 			addStationTrack: async (_p: never, a: { realm: string; station: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -83,8 +85,7 @@ function createGQLResolvers(client: Client) {
 				const station = realm.stationManager.get(a.station);
 				if (!station) throw new UserInputError(`Invalid Station ID!`, { code: `EBADPARAM`, extension: `STATION` });
 
-				const track = await station.addTrack({ ...a.input, realmId: realm.id, managerId: realm.stationManager.id }, c.user);
-				return track.fullMetadata();
+				return await station.addTrack({ ...a.input, realmId: realm.id, managerId: realm.stationManager.id }, c.user);
 			},
 			addTrain: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -110,8 +111,7 @@ function createGQLResolvers(client: Client) {
 					a.input.location = { station, track };
 				}
 
-				const train = await realm.trainManager.create({ ...a.input, realmId: realm.id, managerId: realm.trainManager.id }, c.user);
-				return train.fullMetadata();
+				return await realm.trainManager.create({ ...a.input, realmId: realm.id, managerId: realm.trainManager.id }, c.user);
 			},
 			addTrainSet: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -125,8 +125,7 @@ function createGQLResolvers(client: Client) {
 					a.input.components = movables;
 				}
 
-				const set = await realm.trainSetManager.create({ ...a.input, realmId: realm.id, managerId: realm.trainSetManager.id }, c.user);
-				return set.fullMetadata()
+				return await realm.trainSetManager.create({ ...a.input, realmId: realm.id, managerId: realm.trainSetManager.id }, c.user);
 			},
 			addLocomotive: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -148,8 +147,7 @@ function createGQLResolvers(client: Client) {
 					a.input.controller = controller;
 				}
 
-				const loco = await realm.movableManager.create({ ...a.input, type: 'locomotive', realmId: realm.id, managerId: realm.movableManager.id }, c.user);
-				return loco.fullMetadata();
+				return await realm.movableManager.create({ ...a.input, type: 'locomotive', realmId: realm.id, managerId: realm.movableManager.id }, c.user);
 			},
 			addWagon: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -165,16 +163,14 @@ function createGQLResolvers(client: Client) {
 					a.input.location = { station, track };
 				}
 
-				const wagon = await realm.movableManager.create({ ...a.input, type: 'wagon', realmId: realm.id, managerId: realm.movableManager.id });
-				return wagon.fullMetadata();
+				return await realm.movableManager.create({ ...a.input, type: 'wagon', realmId: realm.id, managerId: realm.movableManager.id });
 			},
 			addTimetable: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
 				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
 				if (!c.user || !c.user.hasPermission('manage timetables', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage timetables` });
 
-				const timetable = await realm.timetableManager.create({ ...a.input, realmId: realm.id, managerId: realm.timetableManager.id });
-				return timetable.fullMetadata();
+				return await realm.timetableManager.create({ ...a.input, realmId: realm.id, managerId: realm.timetableManager.id });
 			},
 			addTimetableEntry: async (_p: never, a: { realm: string; timetable: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -197,7 +193,7 @@ function createGQLResolvers(client: Client) {
 
 				const entry = new TimetableEntry({ ...a.input, managerId: realm.timetableManager.id, realmId: realm.id });
 				timetable.addEntry(entry);
-				return entry.fullMetadata();
+				return entry;
 			},
 			addUser: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
 				const realm = client.get(a.realm);
@@ -213,14 +209,12 @@ function createGQLResolvers(client: Client) {
 					a.input.permissions.realm = realmPermissions;
 				}
 
-				const user = await client.userManager.create({ ...a.input, managerId: client.userManager.id, realmId: realm.id });
-				return user.fullMetadata();
+				return await client.userManager.create({ ...a.input, managerId: client.userManager.id, realmId: realm.id });
 			},
 			addRealm: async (_p: never, a: { input: any; }, c: { user?: User }) => {
 				if (!c.user || !c.user.hasPermission('manage realm')) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage realm` });
 
-				const realm = await client.create({ ...a.input, ownerId: c.user.id });
-				return realm.fullMetadata();
+				return await client.create({ ...a.input, ownerId: c.user.id });
 			}
 		}
 	};
