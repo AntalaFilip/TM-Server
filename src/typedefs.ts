@@ -293,7 +293,7 @@ const typeDefs = gql`
 		elapsed: Int!
 		running: Boolean!
 	}
-	input RealmTime {
+	input RealmTimeInput {
 		startPoint: Int!
 		speedModifier: Int!
 	}
