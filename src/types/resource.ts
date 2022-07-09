@@ -39,8 +39,11 @@ abstract class Resource {
 
 	abstract modify(data: Record<string, unknown>, actor?: User): boolean | Promise<boolean>
 	abstract save(): boolean | Promise<boolean>;
+	/** Returns metadata required to reconstruct the Resource */
 	abstract metadata(): ResourceOptions;
+	/** Returns the metadata that can be made public */
 	abstract publicMetadata(): ResourceOptions;
+	/** Returns the required metadata for the GraphQL resolver */
 	abstract fullMetadata(): ResourceOptions;
 }
 
