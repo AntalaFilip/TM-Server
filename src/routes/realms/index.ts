@@ -21,13 +21,13 @@ function createRealmsRouter(client: Client) {
 	// mainRouter.use('/');
 	mainRouter.use('/:realm', realmParser.bind(undefined, true, client), realmRouter);
 
-	// realmRouter.use('/');
+	/* realmRouter.use('/');
 	realmRouter.use('/time', timeRouter);
 	realmRouter.use('/stations', stationRouter);
 	realmRouter.use('/trains', trainRouter);
 	realmRouter.use('/trainsets', trainSetRouter);
 	realmRouter.use('/locomotives', locoRouter);
-	realmRouter.use('/wagons', wagonRouter);
+	realmRouter.use('/wagons', wagonRouter); */
 
 
 	return mainRouter;

@@ -86,7 +86,7 @@ class Client implements ResourceData {
 		return resource;
 	}
 
-	/** Creates a Realm from a resource identifier (redis key) */
+	/** Creates a Realm from a resource identifier (redis key/resource id) */
 	async fromResourceIdentifier(id: string): Promise<Realm> {
 		const realmData = await this.db.redis.hget('realms', id);
 		if (!realmData) return;

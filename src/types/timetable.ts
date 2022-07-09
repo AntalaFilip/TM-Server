@@ -1,5 +1,6 @@
 import TimetableEntry from "./entry";
 import Resource, { ResourceOptions } from "./resource";
+import User from "./user";
 
 interface TimetableOptions extends ResourceOptions {
 	entries?: TimetableEntry[],
@@ -21,6 +22,9 @@ class Timetable extends Resource {
 		this._genCount = count || 5;
 		this.propertyChange(`genCount`, count);
 	}
+
+	public get inUse() { return this.realm.activeTimetable === this }
+	public get checksPassing() { return this.runChecks() }
 
 	public readonly entries: TimetableEntry[];
 	// public readonly timer: NodeJS.Timer;
@@ -51,6 +55,24 @@ class Timetable extends Resource {
 		return true;
 	}
 
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage timetables', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.genCount === 'number') {
+			this.genCount = data.genCount;
+			modified = true;
+		}
+
+		if (!modified) return false;
+		return true;
+	}
 
 	metadata(): TimetableOptions {
 		return {

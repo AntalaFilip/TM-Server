@@ -28,7 +28,7 @@ class TrainManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.trains.map(t => t.publicMetadata());
+		return this.trains.map(t => t.fullMetadata());
 	}
 
 	async fromResourceIdentifier(fullId: string): Promise<Train> {

@@ -30,7 +30,7 @@ class StationManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.stations.map(s => s.publicMetadata());
+		return this.stations.map(s => s.fullMetadata());
 	}
 
 	async create(resource: Station | StationOptions, actor?: User): Promise<Station> {

@@ -29,7 +29,7 @@ class TrainSetManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.trainsets.map(ts => ts.publicMetadata());
+		return this.trainsets.map(ts => ts.fullMetadata());
 	}
 
 	async create(resource: TrainSet | TrainSetOptions, actor?: User): Promise<TrainSet> {

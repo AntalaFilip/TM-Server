@@ -29,7 +29,7 @@ class TimetableManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.timetables.map(tt => tt.publicMetadata());
+		return this.timetables.map(tt => tt.fullMetadata());
 	}
 
 	async fromResourceIdentifier(fullId: string): Promise<Timetable> {

@@ -48,6 +48,8 @@ interface UserSettings {
 }
 
 class User extends Resource {
+	public readonly realmId: null;
+
 	private _name: string;
 	public get name() { return this._name; }
 	private set name(newName: string) {
@@ -115,6 +117,48 @@ class User extends Resource {
 			admin: this.admin,
 			permissions: this.permissionMeta(),
 		};
+	}
+
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage users') && actor != this) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.username === 'string') {
+			this.username = data.username;
+			modified = true;
+		}
+		if (typeof data.password === 'string') {
+			this.passwordHash = User.hashPassword(data.password);
+			modified = true;
+		}
+		if (typeof data.disabled === 'boolean' && actor != this) {
+			this.disabled = data.disabled;
+			modified = true;
+		}
+		if (typeof data.admin === 'boolean' && actor.admin) {
+			this.admin = data.admin;
+			modified = true;
+		}
+		if (typeof data.globalPermissions === 'number' && actor.admin) {
+			this.adjustGlobalPermissions(data.globalPermissions);
+			modified = true;
+		}
+		if (typeof data.realmPermissions === 'number' && data.realmId === 'string') {
+			const realm = actor.manager.client.realms.get(data.realmId);
+			if (realm) {
+				this.adjustRealmPermissions(realm, data.realmPermissions);
+				modified = true;
+			}
+		}
+
+		if (!modified) return false;
+		return true;
 	}
 
 	publicMetadata(): UserPublicData {

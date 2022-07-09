@@ -195,6 +195,10 @@ class TimetableEntry extends Resource {
 		return set;
 	}
 
+	modify(): boolean | Promise<boolean> {
+		return false;
+	}
+
 	metadata(): TimetableEntryOptions {
 		return {
 			id: this.id,

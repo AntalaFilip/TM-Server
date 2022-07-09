@@ -12,7 +12,7 @@ function createIndexRouter(client: Client) {
 	const realmsRouter = createRealmsRouter(client);
 
 	router.use('/auth', authRouter);
-	router.use('/realms', realmsRouter);
+	// router.use('/realms', realmsRouter);
 
 	return router;
 }
