@@ -188,7 +188,8 @@ class User extends Resource {
 
 	hasPermission(perm: Permission, realm?: Realm): boolean {
 		return (
-			(this.permissions.global & PermissionMap[perm]) === PermissionMap[perm]
+			(perm === null)
+			|| (this.permissions.global & PermissionMap[perm]) === PermissionMap[perm]
 			|| (this.permissions.realm.get(realm?.id) & PermissionMap[perm]) === PermissionMap[perm]
 			|| realm?.owner === this
 			|| this.admin
