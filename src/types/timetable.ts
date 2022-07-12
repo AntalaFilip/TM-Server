@@ -28,7 +28,9 @@ class Timetable extends Resource {
 	public get checksPassing() { return this.runChecks() }
 
 	public readonly entries: TimetableEntry[];
-	// public readonly timer: NodeJS.Timer;
+	public get nowEntries() {
+		return this.entries.filter(e => e.usedFrom.getTime() <= this.realm.timeManager.trueMs && ((e.usedTill?.getTime() ?? Number.POSITIVE_INFINITY) > this.realm.timeManager.trueMs ))
+	}
 
 	constructor(options: TimetableOptions) {
 		super(`timetable`, options);
