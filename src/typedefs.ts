@@ -33,15 +33,39 @@ const typeDefs = gql`
 
 	type Mutation {
 		addStation(realm: ID!, input: StationInput!): Station!
+		modStation(realm: ID!, station: ID!, input: StationInput!): Station!
+
 		addStationTrack(realm: ID!, station: ID!, input: StationTrackInput!): StationTrack!
+		modStationTrack(realm: ID!, station: ID!, track: ID!, input: StationTrackInput!): StationTrack!
+
 		addTrain(realm: ID!, input: TrainInput!): Train!
+		modTrain(realm: ID!, train: ID!, input: TrainInput!): Train!
+		stateTrain(realm: ID!, train: ID!, state: TrainState!, override: Boolean): Train!
+
 		addTrainSet(realm: ID!, input: TrainSetInput!): TrainSet!
+		modTrainSet(realm: ID!, trainSet: ID!, input: TrainSetInput!): TrainSet!
+
 		addLocomotive(realm: ID!, input: LocomotiveInput!): Locomotive!
+		modLocomotive(realm: ID!, locomotive: ID!, input: LocomotiveInput!): Locomotive!
+
 		addWagon(realm: ID!, input: WagonInput!): Wagon!
+		modWagon(realm: ID!, wagon: ID!, input: WagonInput!): Wagon!
+
 		addTimetable(realm: ID!, input: TimetableInput!): Timetable!
+		modTimetable(realm: ID!, timetable: ID!, input: TimetableInput!): Timetable!
+		activeTimetable(realm: ID!, timetable: ID!): Boolean!
+
 		addTimetableEntry(realm: ID!, timetable: ID!, input: TimetableEntryInput!): TimetableEntry!
+		modTimetableEntry(realm: ID!, timetable: ID!, entry: ID!, input: TimetableEntryInput!): TimetableEntry!
+
 		addUser(realm: ID!, input: UserInput!): User!
+		modUser(realm: ID!, user: ID!, input: UserInput!): User!
+
 		addRealm(input: RealmInput!): Realm!
+		modRealm(realm: ID!, input: RealmInput!): Realm!
+
+		modRealmTime(realm: ID!, input: RealmTimeInput!): RealmTime!
+		pauseRealmTime(realm: ID!, state: Boolean!): RealmTime!
 	}
 
 	type Station {
@@ -71,7 +95,7 @@ const typeDefs = gql`
 		name: String!
 		usedForParking: Boolean!
 		length: Int
-		station: Station
+		station: Station!
 		currentTrain: Train
 	}
 	input StationTrackInput {
@@ -296,6 +320,7 @@ const typeDefs = gql`
 	input RealmTimeInput {
 		startPoint: Int!
 		speedModifier: Int!
+		running: Boolean
 	}
 `
 
