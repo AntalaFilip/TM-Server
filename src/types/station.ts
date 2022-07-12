@@ -2,6 +2,7 @@ import Resource, { ResourceOptions } from "./resource";
 import StationTrack, { StationTrackOptions } from "./track";
 import Collection from '@discordjs/collection';
 import User from "./user";
+import { ForbiddenError } from "apollo-server-core";
 
 type StationType = 'STATION' | 'STOP';
 
@@ -65,7 +66,7 @@ class Station extends Resource {
 	}
 
 	async addTrack(resource: StationTrack | StationTrackOptions, actor?: User) {
-		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');
+		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new ForbiddenError('No permission!', { tmCode: `ENOPERM`, permission: `manage stations` });
 
 		if (!(resource instanceof StationTrack)) {
 			resource = new StationTrack(resource);
@@ -109,7 +110,7 @@ class Station extends Resource {
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission('manage stations', this.realm)) throw new Error(`No permission`);
+		if (!actor.hasPermission('manage stations', this.realm)) throw new ForbiddenError(`No permission`, { permission: `manage stations` });
 		let modified = false;
 
 		// TODO: auditing

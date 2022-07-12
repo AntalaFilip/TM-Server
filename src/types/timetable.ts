@@ -1,3 +1,4 @@
+import { ForbiddenError } from "apollo-server-core";
 import TimetableEntry from "./entry";
 import Resource, { ResourceOptions } from "./resource";
 import User from "./user";
@@ -48,7 +49,8 @@ class Timetable extends Resource {
 		return true;
 	}
 
-	addEntry(entry: TimetableEntry) {
+	addEntry(entry: TimetableEntry, actor?: User) {
+		if (actor && !actor.hasPermission(`manage timetables`, this.realm)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage timetables` });
 		if (this.entries.includes(entry)) return false;
 
 		this.entries.push(entry);

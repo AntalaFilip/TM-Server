@@ -7,6 +7,8 @@ import Redis from "../helpers/redis";
 import UserManager from "../managers/UserManager";
 import { Application } from 'express';
 import createIndexRouter from "../routes";
+import User from "./user";
+import { ForbiddenError } from "apollo-server-core";
 
 interface ClientOptions {
 	io: SIOServer,
@@ -72,7 +74,8 @@ class Client implements ResourceData {
 		return true;
 	}
 
-	async create(resource: Realm | RealmOptions): Promise<Realm> {
+	async create(resource: Realm | RealmOptions, actor?: User): Promise<Realm> {
+		if (actor && !actor.hasPermission(`manage realm`)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage realm` });
 		if (this.realms.has(resource.id)) throw new Error(`This Realm already exists!`);
 
 		if (!(resource instanceof Realm)) {

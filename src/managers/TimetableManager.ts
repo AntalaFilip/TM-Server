@@ -1,7 +1,9 @@
 import Collection from "@discordjs/collection";
+import { ForbiddenError } from "apollo-server-core";
 import TimetableEntry, { TimetableEntryOptions } from "../types/entry";
 import Realm from "../types/realm";
 import Timetable, { TimetableOptions } from "../types/timetable";
+import User from "../types/user";
 import ResourceManager from "./ResourceManager";
 
 class TimetableManager extends ResourceManager {
@@ -44,7 +46,9 @@ class TimetableManager extends ResourceManager {
 		return new Timetable(timetableMeta);
 	}
 
-	async create(resource: Timetable | TimetableOptions): Promise<Timetable> {
+	async create(resource: Timetable | TimetableOptions, actor?: User): Promise<Timetable> {
+		if (actor && !actor.hasPermission('manage timetables', this.realm)) throw new ForbiddenError(`No permission!`, { tmCode: `ENOPERM`, permission: `manage timetables` });
+
 		if (!(resource instanceof Timetable)) {
 			resource = new Timetable(resource);
 		}

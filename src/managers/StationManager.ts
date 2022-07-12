@@ -1,4 +1,5 @@
 import Collection from "@discordjs/collection";
+import { ForbiddenError } from "apollo-server-core";
 import Realm from "../types/realm";
 import Station, { StationOptions } from "../types/station";
 import StationTrack, { StationTrackOptions } from "../types/track";
@@ -34,7 +35,7 @@ class StationManager extends ResourceManager {
 	}
 
 	async create(resource: Station | StationOptions, actor?: User): Promise<Station> {
-		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');
+		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new ForbiddenError('No permission!', { tmCode: `ENOPERM`, permission: `manage stations` });
 
 		if (!(resource instanceof Station)) {
 			resource = new Station(resource);

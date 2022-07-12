@@ -4,6 +4,7 @@ import { ResourceData } from "./ResourceManager";
 import User, { UserOptions } from "../types/user";
 import Collection from "@discordjs/collection";
 import crypto from 'crypto';
+import { ForbiddenError } from "apollo-server-core";
 
 class UserManager extends BaseManager implements ResourceData {
 	public readonly users: Collection<string, User>;
@@ -49,7 +50,9 @@ class UserManager extends BaseManager implements ResourceData {
 		return this.users.map(u => u.publicMetadata());
 	}
 
-	async create(resource: User | UserOptions): Promise<User> {
+	async create(resource: User | UserOptions, actor?: User): Promise<User> {
+		if (actor && !actor.hasPermission(`manage users`)) throw new ForbiddenError(`No permission!`, { tmCode: `ENOPERM`, permission: `manage users` });
+
 		if (!(resource instanceof User)) {
 			resource = new User(resource);
 		}
