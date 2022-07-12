@@ -7,6 +7,8 @@ import Redis from "../helpers/redis";
 import UserManager from "../managers/UserManager";
 import { Application } from 'express';
 import createIndexRouter from "../routes";
+import User from "./user";
+import { ForbiddenError } from "apollo-server-core";
 
 interface ClientOptions {
 	io: SIOServer,
@@ -50,6 +52,17 @@ class Client implements ResourceData {
 		});
 	}
 
+	get(id: string): Realm {
+
+		return this.realms.get(id);
+	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.realms.map(r => r.publicMetadata());
+	}
+
 	private async createAllFromStore() {
 		const allRealms = await this.db.redis.hgetall('realms');
 		const arr = Object.entries(allRealms);
@@ -61,7 +74,8 @@ class Client implements ResourceData {
 		return true;
 	}
 
-	async create(resource: Realm | RealmOptions): Promise<Realm> {
+	async create(resource: Realm | RealmOptions, actor?: User): Promise<Realm> {
+		if (actor && !actor.hasPermission(`manage realm`)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage realm` });
 		if (this.realms.has(resource.id)) throw new Error(`This Realm already exists!`);
 
 		if (!(resource instanceof Realm)) {
@@ -75,7 +89,7 @@ class Client implements ResourceData {
 		return resource;
 	}
 
-	/** Creates a Realm from a resource identifier (redis key) */
+	/** Creates a Realm from a resource identifier (redis key/resource id) */
 	async fromResourceIdentifier(id: string): Promise<Realm> {
 		const realmData = await this.db.redis.hget('realms', id);
 		if (!realmData) return;

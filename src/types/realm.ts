@@ -9,6 +9,7 @@ import TrainSetManager from "../managers/TrainSetManager";
 import Client from "./client";
 import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
+import User from "./user";
 
 interface RealmOptions extends ResourceOptions {
 	name: string,
@@ -20,14 +21,23 @@ interface RealmOptions extends ResourceOptions {
 
 class Realm extends Resource {
 	public readonly id: string;
-	public readonly ownerId: string;
+
+	private _ownerId: string;
+	public get ownerId() { return this._ownerId }
+	private set ownerId(newOwner: string) {
+		this.ownerId = newOwner;
+		this.propertyChange(`ownerId`, newOwner);
+	}
 	public get owner() { return this.client.userManager.get(this.ownerId) }
 
 	public readonly ready: Promise<void>;
 
 	private _name: string;
 	public get name(): string { return this._name; }
-	private set name(name: string) { this._name = name; }
+	private set name(name: string) {
+		this._name = name;
+		this.propertyChange(`name`, name);
+	}
 
 	public readonly ionsp: SIONamespace;
 	public readonly db: Redis;
@@ -54,9 +64,9 @@ class Realm extends Resource {
 	constructor(client: Client, options: RealmOptions) {
 		super('realm', options);
 		this.client = client;
-		this.ownerId = options.ownerId;
+		this._ownerId = options.ownerId;
 
-		this.name = options.name || this.id;
+		this._name = options.name || this.id;
 		this.ionsp = options.ionsp ?? this.client.io.of(`/realms/${this.id}`);
 		this.db = options.db ?? new Redis(`realms:${this.id}`);
 
@@ -115,6 +125,49 @@ class Realm extends Resource {
 			ownerId: this.ownerId,
 			activeTimetableId: this.activeTimetableId,
 		};
+	}
+
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage realm', this)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.owner === 'string' && this.owner === actor) {
+			const newOwner = this.client.userManager.get(data.owner);
+			if (newOwner) {
+				this.ownerId = newOwner.id;
+				modified = true;
+			}
+		}
+		if (typeof data.activeTimetableId === 'string') {
+			const timetable = this.timetableManager.get(data.activeTimetableId);
+			if (timetable && timetable.runChecks()) {
+				this.activeTimetableId = timetable.id;
+				modified = true;
+			}
+		}
+
+		if (!modified) return false;
+		return true;
+	}
+
+	publicMetadata() {
+		return {
+			...this.metadata(),
+		}
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			owner: this.owner?.publicMetadata(),
+			activeTimetable: this.activeTimetable?.publicMetadata(),
+		}
 	}
 
 	async save(): Promise<boolean> {

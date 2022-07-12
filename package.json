@@ -24,10 +24,13 @@
   "dependencies": {
     "@discordjs/collection": "^0.7.0",
     "@socket.io/admin-ui": "^0.4.0",
+    "apollo-server-core": "^3.9.0",
+    "apollo-server-express": "^3.9.0",
     "bcrypt": "^5.0.1",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
+    "graphql": "^16.5.0",
     "ioredis": "^5.1.0",
     "jsonwebtoken": "^8.5.1",
     "nanoid": "^4.0.0",

@@ -1,10 +1,7 @@
+import Collection from "@discordjs/collection";
+import ArrDepSet from "./arrdepset";
 import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
-
-type ArrDepSet = {
-	arrival: Date,
-	departure: Date,
-}
 
 interface TimetableEntryOptions extends ResourceOptions {
 	trainId: string,
@@ -18,6 +15,9 @@ interface TimetableEntryOptions extends ResourceOptions {
 	usedFrom?: Date,
 	usedTill?: Date,
 	current?: ArrDepSet,
+	adsCount?: number,
+	cancelledAds?: number[],
+	delayedAds?: [number, number][]
 }
 
 class TimetableEntry extends Resource {
@@ -94,13 +94,29 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`duration`, length);
 	}
 
-	public readonly times: ArrDepSet[];
-	private _current: ArrDepSet;
-	public get current() { return this._current; }
-	private set current(set: ArrDepSet) {
-		this._current = set;
-		this.propertyChange(`current`, set);
+	public get times(): ArrDepSet[] {
+		const times = [];
+		// we want to generate the last entry as well, to make sure that current trains will have some reference
+		for (let i = -1; i < (this.timetable.genCount - 1); i++) {
+			const no = this.adsCount + i;
+			const set = new ArrDepSet({ no, entryId: this.id, timetableId: this.timetable.id, managerId: this.managerId });
+			times.push(set);
+		}
+		return times;
 	}
+
+	public get current() { return this.times[1]; }
+
+	private _adsCount: number;
+	public get adsCount() { return this._adsCount; }
+	private set adsCount(count: number) {
+		if (count <= this._adsCount) return;
+		this._adsCount = count;
+		this.propertyChange(`adsCount`, count);
+	}
+
+	public readonly cancelledAds: number[];
+	public readonly delayedAds: Collection<number, number>;
 
 	constructor(options: TimetableEntryOptions) {
 		super(`timetableentry`, options);
@@ -114,36 +130,11 @@ class TimetableEntry extends Resource {
 		this._duration = options.duration;
 		this._usedFrom = options.usedFrom;
 		this._usedTill = options.usedTill;
+		this._adsCount = options.adsCount ?? 0;
+		this.cancelledAds = options.cancelledAds ?? [];
+		this.delayedAds = new Collection(options.delayedAds ?? []);
 
 		this.setIds = options.setIds ?? [];
-		this.times = [];
-
-		this.regenerate();
-
-		// if there's nothing passed, assume that we want the next possible entry (index 0 is one before)
-		this._current = options.current ?? this.times[1];
-	}
-
-	/**
-	 * Clears and regenerates ArrDepSets (this.times) according to current properties -- use with caution
-	 * @returns
-	 */
-	regenerate() {
-		this.times.length = 0;
-		const count = this.timetable.genCount;
-		const firstArr = this.findNextTime();
-		// we want to generate the last entry as well, to make sure that current trains will have some reference
-		for (let i = -1; i < (count - 1); i++) {
-			const arrival = new Date(firstArr + (i * this.repeats));
-			const departure = new Date(arrival.getTime() + this.duration);
-			const set: ArrDepSet = {
-				arrival,
-				departure,
-			};
-			this.times.push(set);
-		}
-
-		return this.times.length;
 	}
 
 	/**
@@ -156,42 +147,13 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`setIds`, setIds);
 	}
 
-	/**
-	 * Finds the next closest arrival time for this entry
-	 * @returns closest arrival time in epoch milliseconds
-	 */
-	private findNextTime(): number {
-		const now = this.realm.timeManager.trueMs;
-		// the time passed from the start
-		const subt = now - this.start.getTime();
-		// if the start is in the future, there is nothing more to calculate.
-		if (subt < 0) return this.start.getTime();
-
-		// no. of repeats until the next (Math.ceil) time
-		// the last time would be Math.floor
-		const repeats = Math.ceil(subt / this.repeats);
-		// calculated next time
-		return this.start.getTime() + (this.repeats * repeats);
+	nextSet() {
+		this.adsCount++;
+		return this.current;
 	}
 
-	/**
-	 * Generates a new ArrDepSet relative to the last one (falls back to TimetableEntry::findNextTime), pushes it to the array and removes the first (last) entry
-	 * @param shift whether to clear the first entry, def: true
-	 * @returns the new ArrDepSet
-	 */
-	genNewTime(shift = true) {
-		if (shift) this.times.shift();
-
-		const last = this.times[this.times.length - 1];
-		const arrival = new Date((last?.arrival.getTime() ?? this.findNextTime()) + this.repeats);
-		const departure = new Date(arrival.getTime() + this.duration);
-
-		const set: ArrDepSet = {
-			arrival,
-			departure,
-		};
-		this.times.push(set);
-		return set;
+	modify(): boolean | Promise<boolean> {
+		return false;
 	}
 
 	metadata(): TimetableEntryOptions {
@@ -209,8 +171,27 @@ class TimetableEntry extends Resource {
 			usedFrom: this.usedFrom,
 			usedTill: this.usedTill,
 			setIds: this.sets.map(s => s.id),
-			current: this.current,
+			adsCount: this.adsCount
 		};
+	}
+
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			times: this.times.slice(0, 5)
+		}
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			locomotive: this.locomotive?.publicMetadata(),
+			station: this.station?.publicMetadata(),
+			track: this.track?.publicMetadata(),
+			train: this.train.publicMetadata(),
+			sets: this.sets.map(s => s.publicMetadata()),
+			times: this.times,
+		}
 	}
 
 	async save(): Promise<boolean> {

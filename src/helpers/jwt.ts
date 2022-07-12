@@ -4,7 +4,9 @@ import path from 'path';
 
 function verifyToken(token: string) {
 	try {
-		return jwt.verify(token, fs.readFileSync(path.join(__dirname, '..', '..', 'certs', 'public.pem')), { algorithms: ['RS256'] });
+		const payload = jwt.verify(token, fs.readFileSync(path.join(__dirname, '..', '..', 'certs', 'public.pem')), { algorithms: ['RS256'] });
+		if (typeof payload != 'object') return;
+		return payload;
 	}
 	catch (err) {
 		if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {

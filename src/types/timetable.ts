@@ -1,5 +1,7 @@
+import { ForbiddenError } from "apollo-server-core";
 import TimetableEntry from "./entry";
 import Resource, { ResourceOptions } from "./resource";
+import User from "./user";
 
 interface TimetableOptions extends ResourceOptions {
 	entries?: TimetableEntry[],
@@ -22,8 +24,13 @@ class Timetable extends Resource {
 		this.propertyChange(`genCount`, count);
 	}
 
+	public get inUse() { return this.realm.activeTimetable === this }
+	public get checksPassing() { return this.runChecks() }
+
 	public readonly entries: TimetableEntry[];
-	// public readonly timer: NodeJS.Timer;
+	public get nowEntries() {
+		return this.entries.filter(e => e.usedFrom.getTime() <= this.realm.timeManager.trueMs && ((e.usedTill?.getTime() ?? Number.POSITIVE_INFINITY) > this.realm.timeManager.trueMs ))
+	}
 
 	constructor(options: TimetableOptions) {
 		super(`timetable`, options);
@@ -44,13 +51,32 @@ class Timetable extends Resource {
 		return true;
 	}
 
-	addEntry(entry: TimetableEntry) {
+	addEntry(entry: TimetableEntry, actor?: User) {
+		if (actor && !actor.hasPermission(`manage timetables`, this.realm)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage timetables` });
 		if (this.entries.includes(entry)) return false;
 
 		this.entries.push(entry);
 		return true;
 	}
 
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage timetables', this.realm)) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.genCount === 'number') {
+			this.genCount = data.genCount;
+			modified = true;
+		}
+
+		if (!modified) return false;
+		return true;
+	}
 
 	metadata(): TimetableOptions {
 		return {
@@ -60,6 +86,18 @@ class Timetable extends Resource {
 			name: this.name,
 			genCount: this.genCount,
 		};
+	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			entryIds: this.entries.map(e => e.id),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			entries: this.entries.map(e => e.publicMetadata()),
+		}
 	}
 
 	async save(): Promise<boolean> {

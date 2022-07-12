@@ -1,5 +1,6 @@
 import { newUUID } from "../helpers/id";
 import ResourceManager from "../managers/ResourceManager";
+import User from "./user";
 
 interface ResourceOptions {
 	id?: string,
@@ -36,8 +37,14 @@ abstract class Resource {
 		return this.realm.ionsp.emit('propertyChange', this.id, this.type, prop, value);
 	}
 
+	abstract modify(data: Record<string, unknown>, actor?: User): boolean | Promise<boolean>
 	abstract save(): boolean | Promise<boolean>;
+	/** Returns metadata required to reconstruct the Resource */
 	abstract metadata(): ResourceOptions;
+	/** Returns the metadata that can be made public */
+	abstract publicMetadata(): ResourceOptions;
+	/** Returns the required metadata for the GraphQL resolver */
+	abstract fullMetadata(): ResourceOptions;
 }
 
 export default Resource;

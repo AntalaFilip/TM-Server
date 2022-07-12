@@ -1,3 +1,4 @@
+import { ForbiddenError } from "apollo-server-core";
 import Locomotive from "./locomotive";
 import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
@@ -108,15 +109,16 @@ class Train extends Resource {
 	 * careful, it throws!
 	 * @returns
 	 */
-	updateTrainState(newState: TrainState, override = false, ...extra: string[]) {
+	updateTrainState(newState: TrainState, actor?: User, override = false, ...extra: string[]) {
 		if (!this.realm.activeTimetable) throw new Error(`There is no active timetable!`);
+		if (actor && (!actor.hasPermission('manage trains', this.realm) && this.locomotive?.controller !== actor && this.location?.station.dispatcher !== actor)) throw new ForbiddenError(`You do not have permission to interact with this Train!`, { tmCode: `ENOPERM`, permission: `manage trains` });
 		const prevState = this.state;
 		// TODO: autoskipping and stuff
 		if (newState === prevState) return;
 		if (newState === 'MOVING') {
 			this.location = null;
 			if (prevState != 'MISSING') {
-				this.currentEntry.genNewTime();
+				this.currentEntry.nextSet();
 				this.currentEntryId = this.nextEntry?.id;
 			}
 		}
@@ -141,7 +143,7 @@ class Train extends Resource {
 	}
 
 	async modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission('manage trains', this.realm)) throw new Error(`No permission`);
+		if (!actor.hasPermission('manage trains', this.realm)) throw new ForbiddenError(`No permission`, { permission: `manage trains` });
 		let modified = false;
 
 		// TODO: auditing
@@ -166,7 +168,7 @@ class Train extends Resource {
 			}
 		}
 		if (checkTrainStateValidity(data.state)) {
-			this.updateTrainState(data.state, true);
+			this.updateTrainState(data.state, actor, true);
 			modified = true;
 		}
 
@@ -183,11 +185,20 @@ class Train extends Resource {
 		return true;
 	}
 
+	public stateChecksPassing() {
+		try {
+			return this.runStateChecks();
+		}
+		catch (err) {
+			return false;
+		}
+	}
+
 	async newTrainSets(sets: TrainSet[]) {
 		this.trainSets.length = 0;
 		this.trainSets.push(...sets);
 		const trueTimestamp = this.manager.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:trainsets`), "*", "ids", JSON.stringify(sets.map(s => s.id)), "time", trueTimestamp);
+		await this.manager.db.redis.xadd(this.manager.key(`${this.id}:trainsets`), "*", "ids", JSON.stringify(sets.map(s => s.id)), "time", trueTimestamp);
 		this.propertyChange(`trainSets`, sets, true);
 	}
 
@@ -204,6 +215,24 @@ class Train extends Resource {
 			trainSetIds: this.trainSets.map(t => t.id),
 			state: this.state,
 		};
+	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			checks: this.stateChecksPassing(),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			checks: this.stateChecksPassing(),
+			currentEntry: this.currentEntry?.publicMetadata(),
+			nextEntry: this.nextEntry?.publicMetadata(),
+			location: this.location && Object.fromEntries(Object.entries(this.location).map(([k, v]) => [k, v.publicMetadata()])),
+			locomotive: this.locomotive?.publicMetadata(),
+			trainSets: this.trainSets.map(t => t.publicMetadata()),
+			arrDepSet: this.arrDepSet,
+		}
 	}
 
 	async save(): Promise<boolean> {

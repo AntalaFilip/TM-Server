@@ -9,7 +9,7 @@ interface TrainSetOptions extends ResourceOptions {
 
 interface TrainSetOptionsMetadata extends ResourceOptions {
 	name: string,
-	components: string[]
+	componentIds: string[]
 }
 
 class TrainSet extends Resource {
@@ -61,8 +61,19 @@ class TrainSet extends Resource {
 			realmId: this.realmId,
 			id: this.id,
 			name: this.name,
-			components: this.components.map(c => c.id),
+			componentIds: this.components.map(c => c.id),
 		};
+	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			components: this.components.map(m => m.publicMetadata()),
+		}
 	}
 
 	async save(): Promise<boolean> {

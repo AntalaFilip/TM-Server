@@ -4,13 +4,13 @@ import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
 import Realm from "./realm";
 
-interface UserOptions extends ResourceOptions, UserPublicData {
+interface UserOptions extends UserPublicData {
 	passwordHash?: string,
 	settings?: UserSettings,
 	realmId: null,
 }
 
-interface UserPublicData {
+interface UserPublicData extends ResourceOptions {
 	id?: string,
 	name: string,
 	username: string,
@@ -29,9 +29,9 @@ interface UserPermissionsMetadata {
 	realm: [string, number][],
 }
 
-type Permission = 'manage realm' | 'manage users' | 'manage stations' | 'manage movables' | 'manage time' | 'control time' | 'assign users' | 'manage trains';
+type Permission = 'manage realm' | 'manage users' | 'manage stations' | 'manage movables' | 'manage time' | 'control time' | 'assign users' | 'manage trains' | 'manage timetables';
 
-const PermissionMap = {
+const PermissionMap: Record<Permission, number> = {
 	'manage realm': 1 << 0,
 	'manage users': 1 << 1,
 	'manage stations': 1 << 2,
@@ -40,6 +40,7 @@ const PermissionMap = {
 	'control time': 1 << 5,
 	'assign users': 1 << 6,
 	'manage trains': 1 << 7,
+	'manage timetables': 1 << 8,
 };
 
 interface UserSettings {
@@ -47,6 +48,8 @@ interface UserSettings {
 }
 
 class User extends Resource {
+	public readonly realmId: null;
+
 	private _name: string;
 	public get name() { return this._name; }
 	private set name(newName: string) {
@@ -116,6 +119,48 @@ class User extends Resource {
 		};
 	}
 
+	async modify(data: Record<string, unknown>, actor: User) {
+		if (!actor.hasPermission('manage users') && actor != this) throw new Error(`No permission`);
+		let modified = false;
+
+		// TODO: auditing
+
+		if (typeof data.name === 'string') {
+			this.name = data.name;
+			modified = true;
+		}
+		if (typeof data.username === 'string') {
+			this.username = data.username;
+			modified = true;
+		}
+		if (typeof data.password === 'string') {
+			this.passwordHash = User.hashPassword(data.password);
+			modified = true;
+		}
+		if (typeof data.disabled === 'boolean' && actor != this) {
+			this.disabled = data.disabled;
+			modified = true;
+		}
+		if (typeof data.admin === 'boolean' && actor.admin) {
+			this.admin = data.admin;
+			modified = true;
+		}
+		if (typeof data.globalPermissions === 'number' && actor.admin) {
+			this.adjustGlobalPermissions(data.globalPermissions);
+			modified = true;
+		}
+		if (typeof data.realmPermissions === 'number' && data.realmId === 'string') {
+			const realm = actor.manager.client.realms.get(data.realmId);
+			if (realm) {
+				this.adjustRealmPermissions(realm, data.realmPermissions);
+				modified = true;
+			}
+		}
+
+		if (!modified) return false;
+		return true;
+	}
+
 	publicMetadata(): UserPublicData {
 		return {
 			name: this.name,
@@ -124,6 +169,13 @@ class User extends Resource {
 			disabled: this.disabled,
 			id: this.id,
 			permissions: this.permissionMeta(),
+			managerId: this.managerId,
+			realmId: this.realmId,
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.publicMetadata(),
 		}
 	}
 
@@ -136,7 +188,8 @@ class User extends Resource {
 
 	hasPermission(perm: Permission, realm?: Realm): boolean {
 		return (
-			(this.permissions.global & PermissionMap[perm]) === PermissionMap[perm]
+			(perm === null)
+			|| (this.permissions.global & PermissionMap[perm]) === PermissionMap[perm]
 			|| (this.permissions.realm.get(realm?.id) & PermissionMap[perm]) === PermissionMap[perm]
 			|| realm?.owner === this
 			|| this.admin

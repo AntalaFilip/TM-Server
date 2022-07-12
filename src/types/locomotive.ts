@@ -7,7 +7,7 @@ interface LocomotiveOptions extends MovableOptions {
 
 class Locomotive extends Movable {
 	constructor(options: LocomotiveOptions) {
-		super('locomotive', options);
+		super('LOCOMOTIVE', options);
 
 		// TODO: sanity check
 		this._controller = options.controller;
@@ -35,6 +35,21 @@ class Locomotive extends Movable {
 			managerId: this.managerId,
 			type: this.type,
 		};
+	}
+
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			controllerId: this.controller?.id,
+		}
+	}
+
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			currentLocation: this.currentLocation && Object.fromEntries(Object.entries(this.currentLocation).map(([k, v]) => [k, v.publicMetadata()])),
+			controller: this.controller?.publicMetadata(),
+		}
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {

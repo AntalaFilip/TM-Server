@@ -28,8 +28,8 @@ class MovableManager extends ResourceManager {
 		if (actor && !actor.hasPermission('manage movables', this.realm)) throw new Error('No permission!');
 
 		if (!(resource instanceof Movable)) {
-			if (resource.type === 'locomotive') resource = new Locomotive(resource);
-			else if (resource.type === 'wagon') resource = new Wagon(resource as WagonOptions);
+			if (resource.type === 'LOCOMOTIVE') resource = new Locomotive(resource);
+			else if (resource.type === 'WAGON') resource = new Wagon(resource as WagonOptions);
 			else return;
 		}
 
@@ -42,6 +42,12 @@ class MovableManager extends ResourceManager {
 
 	get(id: string): Movable {
 		return this.movables.get(id);
+	}
+	getOne(id: string) {
+		return this.get(id)?.fullMetadata();
+	}
+	getAll() {
+		return this.movables.map(m => m.fullMetadata());
 	}
 
 	getLoco(id: string): Locomotive {
@@ -64,7 +70,7 @@ class MovableManager extends ResourceManager {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as MovableOptions;
 
-				const movable = v.type === 'locomotive' ? new Locomotive(v) : new Wagon(v as WagonOptions);
+				const movable = v.type === 'LOCOMOTIVE' ? new Locomotive(v) : new Wagon(v as WagonOptions);
 				this.movables.set(k, movable);
 			}
 			catch {
@@ -81,10 +87,10 @@ class MovableManager extends ResourceManager {
 
 		try {
 			const movableMeta = JSON.parse(movableData) as MovableOptions;
-			if (movableMeta.type === 'wagon') {
+			if (movableMeta.type === 'WAGON') {
 				return new Wagon(movableMeta as WagonOptions);
 			}
-			else if (movableMeta.type === 'locomotive') {
+			else if (movableMeta.type === 'LOCOMOTIVE') {
 				return new Locomotive(movableMeta);
 			}
 		}

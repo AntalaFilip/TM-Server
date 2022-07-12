@@ -1,3 +1,4 @@
+import { ForbiddenError } from "apollo-server-core";
 import Realm from "../types/realm";
 import User from "../types/user";
 import BaseManager from "./BaseManager";
@@ -117,6 +118,8 @@ class TimeManager extends BaseManager {
 	}
 
 	get(): null { return null }
+	getOne(): null { return null }
+	getAll() { return this.metadata() }
 
 	fromResourceIdentifier(): null { return null }
 
@@ -132,14 +135,14 @@ class TimeManager extends BaseManager {
 	}
 
 	setRunning(state: boolean, actor: User) {
-		if (!actor.hasPermission('control time', this.realm) && !actor.hasPermission('manage time', this.realm)) throw new Error(`No permission`);
+		if (!actor.hasPermission('control time', this.realm) && !actor.hasPermission('manage time', this.realm)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `control time` });
 
 		// TODO: auditing
 		this.running = state;
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission('manage time', this.realm)) throw new Error(`No permission`);
+		if (!actor.hasPermission('manage time', this.realm)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage time` });
 		let modified = false;
 
 		// TODO: auditing

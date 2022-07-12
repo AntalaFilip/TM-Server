@@ -2,11 +2,12 @@ import Resource, { ResourceOptions } from "./resource";
 import StationTrack, { StationTrackOptions } from "./track";
 import Collection from '@discordjs/collection';
 import User from "./user";
+import { ForbiddenError } from "apollo-server-core";
 
-type StationType = 'station' | 'stop';
+type StationType = 'STATION' | 'STOP';
 
 function checkStationTypeValidity(toCheck: unknown): toCheck is StationType {
-	return toCheck === 'station' || toCheck === 'stop';
+	return toCheck === 'STATION' || toCheck === 'STOP';
 }
 
 interface StationOptions extends ResourceOptions {
@@ -56,6 +57,7 @@ class Station extends Resource {
 		super('station', options);
 
 		this._name = options.name;
+		this._short = options.short;
 		this._stationType = options.stationType;
 
 		// TODO: sanity check
@@ -64,7 +66,7 @@ class Station extends Resource {
 	}
 
 	async addTrack(resource: StationTrack | StationTrackOptions, actor?: User) {
-		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');
+		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new ForbiddenError('No permission!', { tmCode: `ENOPERM`, permission: `manage stations` });
 
 		if (!(resource instanceof StationTrack)) {
 			resource = new StationTrack(resource);
@@ -89,8 +91,26 @@ class Station extends Resource {
 		};
 	}
 
+	publicMetadata() {
+		return {
+			...this.metadata(),
+			dispatcherId: this.dispatcher?.id,
+			trackIds: this.tracks.map(t => t.id),
+			trainIds: this.trains.map(t => t.id),
+		};
+	}
+
+	// GraphQL metadata
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			id: this.id,
+			_self: this
+		};
+	}
+
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission('manage stations', this.realm)) throw new Error(`No permission`);
+		if (!actor.hasPermission('manage stations', this.realm)) throw new ForbiddenError(`No permission`, { permission: `manage stations` });
 		let modified = false;
 
 		// TODO: auditing

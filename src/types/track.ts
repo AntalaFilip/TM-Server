@@ -80,6 +80,17 @@ class StationTrack extends Resource {
 			name: this.name,
 		};
 	}
+	publicMetadata() {
+		return {
+			...this.metadata(),
+		}
+	}
+	fullMetadata() {
+		return {
+			...this.metadata(),
+			station: this.station?.publicMetadata(),
+		}
+	}
 
 	async save(): Promise<boolean> {
 		await this.manager.db.redis.hset(`${this.stationId}:tracks`, JSON.stringify(this.metadata()));
