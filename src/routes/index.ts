@@ -1,7 +1,6 @@
 import Express from 'express';
 import Client from '../types/client';
 import createAuthRouter from './auth';
-import createRealmsRouter from './realms';
 import cookieParser from 'cookie-parser';
 
 function createIndexRouter(client: Client) {
@@ -9,10 +8,8 @@ function createIndexRouter(client: Client) {
 	router.use(cookieParser());
 
 	const authRouter = createAuthRouter(client);
-	const realmsRouter = createRealmsRouter(client);
 
 	router.use('/auth', authRouter);
-	// router.use('/realms', realmsRouter);
 
 	return router;
 }
