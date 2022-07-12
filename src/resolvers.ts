@@ -6,9 +6,14 @@ import TimetableEntry from "./types/entry";
 import Locomotive from "./types/locomotive";
 import Movable from "./types/movable";
 import Realm from "./types/realm";
+import { TrainState } from "./types/train";
 import TrainSet from "./types/trainset";
 import User, { UserPermissions } from "./types/user";
 import Wagon from "./types/wagon";
+
+type GQLContext = {
+	user?: User
+}
 
 function createGQLResolvers(client: Client) {
 	const resolvers = {
@@ -70,27 +75,49 @@ function createGQLResolvers(client: Client) {
 			}
 		},
 		Mutation: {
-			addStation: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
+			addStation: async (_p: never, a: { realm: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage stations', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage stations` });
-
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 				return await realm.stationManager.create({ ...a.input, realmId: realm.id, managerId: realm.stationManager.id }, c.user);
 			},
-			addStationTrack: async (_p: never, a: { realm: string; station: string; input: any; }, c: { user?: User }) => {
+			modStation: async (_p: never, a: { input: any, station: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage stations', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage stations` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const station = realm.stationManager.get(a.station);
+				if (!station) throw new UserInputError(`Invalid Station ID!`, { tmCode: `EBADPARAM`, extension: `STATION` });
+				station.modify(a.input, c.user);
+				return station;
+			},
+			addStationTrack: async (_p: never, a: { realm: string; station: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 
 				const station = realm.stationManager.get(a.station);
 				if (!station) throw new UserInputError(`Invalid Station ID!`, { code: `EBADPARAM`, extension: `STATION` });
 
 				return await station.addTrack({ ...a.input, realmId: realm.id, managerId: realm.stationManager.id }, c.user);
 			},
-			addTrain: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
+			modStationTrack: async (_p: never, a: { input: any, station: string, track: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage trains', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage trains` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const station = realm.stationManager.get(a.station);
+				if (!station) throw new UserInputError(`Invalid Station ID!`, { tmCode: `EBADPARAM`, extension: `STATION` });
+				const track = station.tracks.get(a.track);
+				if (!track) throw new UserInputError(`Invalid Track ID!`, { tmCode: `EBADPARAM`, extension: `TRACK` });
+
+				track.modify(a.input, c.user);
+				return track;
+			},
+			addTrain: async (_p: never, a: { realm: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 
 				if (a.input.locomotive) {
 					const loco = realm.movableManager.getLoco(a.input.locomotive);
@@ -113,10 +140,33 @@ function createGQLResolvers(client: Client) {
 
 				return await realm.trainManager.create({ ...a.input, realmId: realm.id, managerId: realm.trainManager.id }, c.user);
 			},
-			addTrainSet: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
+			modTrain: async (_p: never, a: { input: any, train: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage trains', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage trains` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const train = realm.trainManager.get(a.train);
+				if (!train) throw new UserInputError(`Invalid Train ID!`, { tmCode: `EBADPARAM`, extension: `TRAIN` });
+
+				await train.modify(a.input, c.user);
+				return train;
+			},
+			stateTrain: async (_p: never, a: { input: any, train: string, state: TrainState, override?: boolean, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const train = realm.trainManager.get(a.train);
+				if (!train) throw new UserInputError(`Invalid Train ID!`, { tmCode: `EBADPARAM`, extension: `TRAIN` });
+
+				// TODO: add ...extra handling, ex. changing arrival track
+				train.updateTrainState(a.state, c.user, a.override);
+				return train;
+			},
+			addTrainSet: async (_p: never, a: { realm: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 
 				if (a.input.components) {
 					const movables = a.input.components.map((c: string) => realm.movableManager.get(c)).filter((m: Movable) => m != null);
@@ -127,10 +177,21 @@ function createGQLResolvers(client: Client) {
 
 				return await realm.trainSetManager.create({ ...a.input, realmId: realm.id, managerId: realm.trainSetManager.id }, c.user);
 			},
-			addLocomotive: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
+			modTrainSet: async (_p: never, a: { trainSet: string, input: any, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage movables', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage movables` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const trainSet = realm.trainSetManager.get(a.trainSet);
+				if (!trainSet) throw new UserInputError(`Invalid Train Set ID!`, { tmCode: `EBADPARAM`, extension: `TRAINSET` });
+
+				await trainSet.modify(a.input, c.user);
+				return trainSet;
+			},
+			addLocomotive: async (_p: never, a: { realm: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 
 				if (a.input.location) {
 					const station = realm.stationManager.get(a.input.location.station);
@@ -149,10 +210,21 @@ function createGQLResolvers(client: Client) {
 
 				return await realm.movableManager.create({ ...a.input, type: 'locomotive', realmId: realm.id, managerId: realm.movableManager.id }, c.user);
 			},
-			addWagon: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
+			modLocomotive: async (_p: never, a: { input: any, locomotive: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage movables', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage movables` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const locomotive = realm.movableManager.getLoco(a.locomotive);
+				if (!locomotive) throw new UserInputError(`Invalid Locomotive ID!`, { tmCode: `EBADPARAM`, extension: `LOCOMOTIVE` });
+
+				locomotive.modify(a.input, c.user);
+				return locomotive;
+			},
+			addWagon: async (_p: never, a: { realm: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 
 				if (a.input.location) {
 					const station = realm.stationManager.get(a.input.location.station);
@@ -163,19 +235,53 @@ function createGQLResolvers(client: Client) {
 					a.input.location = { station, track };
 				}
 
-				return await realm.movableManager.create({ ...a.input, type: 'wagon', realmId: realm.id, managerId: realm.movableManager.id });
+				return await realm.movableManager.create({ ...a.input, type: 'wagon', realmId: realm.id, managerId: realm.movableManager.id }, c.user);
 			},
-			addTimetable: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
+			modWagon: async (_p: never, a: { input: any, wagon: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage timetables', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage timetables` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
 
-				return await realm.timetableManager.create({ ...a.input, realmId: realm.id, managerId: realm.timetableManager.id });
+				const wagon = realm.movableManager.getWagon(a.wagon);
+				if (!wagon) throw new UserInputError(`Invalid Wagon ID!`, { tmCode: `EBADPARAM`, extension: `WAGON` });
+
+				wagon.modify(a.input, c.user);
+				return wagon;
 			},
-			addTimetableEntry: async (_p: never, a: { realm: string; timetable: string; input: any; }, c: { user?: User }) => {
+			addTimetable: async (_p: never, a: { realm: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage timetables', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage timetables` });
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				return await realm.timetableManager.create({ ...a.input, realmId: realm.id, managerId: realm.timetableManager.id }, c.user);
+			},
+			modTimetable: async (_p: never, a: { input: any, timetable: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				const timetable = realm.timetableManager.get(a.timetable);
+				if (!timetable) throw new UserInputError(`Invalid Timetable ID!`, { tmCode: `EBADPARAM`, extension: `TIMETABLE` });
+
+				await timetable.modify(a.input, c.user);
+				return timetable;
+			},
+			activeTimetable: async (_p: never, a: { timetable: string, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				if (!c.user.hasPermission(`manage timetables`, realm)) throw new ForbiddenError(`No permission!`, { tmCode: `ENOPERM`, permission: `manage timetables` });
+				const timetable = realm.timetableManager.get(a.timetable);
+				if (!timetable) throw new UserInputError(`Invalid Timetable ID!`, { tmCode: `EBADPARAM`, extension: `TIMETABLE` });
+
+				return realm.setActiveTimetable(timetable);
+			},
+			addTimetableEntry: async (_p: never, a: { realm: string; timetable: string; input: any; }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
 				const timetable = realm.timetableManager.get(a.timetable);
 				if (!timetable) throw new UserInputError(`Invalid Timetable ID!`, { error: `EBADPARAM`, extension: `TIMETABLE` });
 
@@ -192,15 +298,13 @@ function createGQLResolvers(client: Client) {
 				if (sets.length != a.input.sets.length) throw new UserInputError(`Invalid Set IDs!`, { error: `EBADPARAM`, extension: `SETS` });
 
 				const entry = new TimetableEntry({ ...a.input, managerId: realm.timetableManager.id, realmId: realm.id });
-				timetable.addEntry(entry);
+				timetable.addEntry(entry, c.user);
 				return entry;
 			},
-			addUser: async (_p: never, a: { realm: string; input: any; }, c: { user?: User }) => {
-				const realm = client.get(a.realm);
-				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { code: `EBADPARAM`, extension: `REALM` });
-				if (!c.user || !c.user.hasPermission('manage users', realm)) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage users` });
+			addUser: async (_p: never, a: { input: any }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 
-				if (a.input.admin && !c.user.admin) throw new ForbiddenError(`You are not authorized to grant Global Administrator permissions!`, { code: `ENOPERM`, extension: `grant global admin` });
+				if (a.input.admin && !c.user.admin) throw new ForbiddenError(`You are not authorized to grant Global Administrator permissions!`, { code: `ENOPERM`, extension: `GRANT: global admin` });
 
 				if (a.input.permissions?.realm) {
 					const realmPermissions = a.input.permissions.realm.map((perm: { realm: string, permissions: number }) => ({ realm: client.get(perm.realm), permissions: perm.permissions }));
@@ -209,12 +313,46 @@ function createGQLResolvers(client: Client) {
 					a.input.permissions.realm = realmPermissions;
 				}
 
-				return await client.userManager.create({ ...a.input, managerId: client.userManager.id, realmId: realm.id });
+				return await client.userManager.create({ ...a.input, managerId: client.userManager.id }, c.user);
 			},
-			addRealm: async (_p: never, a: { input: any; }, c: { user?: User }) => {
-				if (!c.user || !c.user.hasPermission('manage realm')) throw new AuthenticationError(`No permission`, { code: `ENOPERM`, extension: `manage realm` });
+			modUser: async (_p: never, a: { input: any, user: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
 
-				return await client.create({ ...a.input, ownerId: c.user.id });
+				const user = client.userManager.get(a.user);
+				if (!user) throw new UserInputError(`Invalid User ID!`, { tmCode: `EBADPARAM`, extension: `USER` });
+
+				await user.modify(a.input, c.user);
+				return user;
+			},
+			addRealm: async (_p: never, a: { input: any }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+
+				return await client.create({ ...a.input, ownerId: c.user.id }, c.user);
+			},
+			modRealm: async (_p: never, a: { input: any, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				await realm.modify(a.input, c.user);
+				return realm;
+			},
+
+			modRealmTime: async (_p: never, a: { input: any, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				realm.timeManager.modify(a.input, c.user);
+				return realm.timeManager;
+			},
+			pauseRealmTime: async (_p: never, a: { state: boolean, realm: string }, c: GQLContext) => {
+				if (!c.user) throw new AuthenticationError(`Unauthenticated`, { tmCode: `ENOAUTH` });
+				const realm = client.get(a.realm);
+				if (!realm) throw new UserInputError(`Invalid Realm ID!`, { tmCode: `EBADPARAM`, extension: `REALM` });
+
+				realm.timeManager.setRunning(a.state, c.user);
+				return realm.timeManager;
 			}
 		}
 	};
@@ -222,3 +360,4 @@ function createGQLResolvers(client: Client) {
 }
 
 export default createGQLResolvers;
+export { GQLContext };
