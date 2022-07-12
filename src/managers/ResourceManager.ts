@@ -1,5 +1,6 @@
 import Realm from "../types/realm";
 import Resource, { ResourceOptions } from "../types/resource";
+import User from "../types/user";
 import BaseManager from "./BaseManager";
 
 const managers = new Map<string, ResourceManager>();
@@ -35,7 +36,7 @@ abstract class ResourceManager extends BaseManager implements ResourceData {
 	abstract getOne(id: string): ResourceOptions;
 	abstract getAll(): ResourceOptions[]
 
-	abstract create(resource: Resource | ResourceOptions): Resource | Promise<Resource>;
+	abstract create(resource: Resource | ResourceOptions, actor?: User): Resource | Promise<Resource>;
 
 	key(name: string): string {
 		return `${this.id}:${name}`
