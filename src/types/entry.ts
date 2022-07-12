@@ -138,30 +138,6 @@ class TimetableEntry extends Resource {
 	}
 
 	/**
-	 * Clears and regenerates ArrDepSets (this.times) according to current properties -- use with caution
-	 * @returns
-	 */
-	/* private regenerate() {
-		this.times.length = 0;
-		const count = this.timetable.genCount;
-		const firstArr = this.findNextTime();
-		// we want to generate the last entry as well, to make sure that current trains will have some reference
-		for (let i = -1; i < (count - 1); i++) {
-			const arrival = new Date(firstArr + (i * this.repeats));
-			const departure = new Date(arrival.getTime() + this.duration);
-			const set: ArrDepSet = {
-				arrival,
-				departure,
-				no: this.adsCount + i,
-			};
-			this.times.push(set);
-		}
-		this.current = this.times[1];
-
-		return this.times.length;
-	} */
-
-	/**
 	 * Clears current and pushes new TrainSet IDs
 	 * @param setIds an array of IDs of the new sets
 	 */
@@ -171,50 +147,10 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`setIds`, setIds);
 	}
 
-	/**
-	 * Finds the next closest arrival time for this entry
-	 * @returns closest arrival time in epoch milliseconds
-	 */
-	private findNextTime(): number {
-		const now = this.realm.timeManager.trueMs;
-		// the time passed from the start
-		const subt = now - this.start.getTime();
-		// if the start is in the future, there is nothing more to calculate.
-		if (subt < 0) return this.start.getTime();
-
-		// no. of repeats until the next (Math.ceil) time
-		// the last time would be Math.floor
-		const repeats = Math.ceil(subt / this.repeats);
-		// calculated next time
-		return this.start.getTime() + (this.repeats * repeats);
-	}
-
 	nextSet() {
 		this.adsCount++;
 		return this.current;
 	}
-
-	/**
-	 * Generates a new ArrDepSet relative to the last one (falls back to TimetableEntry::findNextTime), pushes it to the array and removes the first (last) entry
-	 * @param shift whether to clear the first entry, def: true
-	 * @returns the new ArrDepSet
-	 */
-	/* genNewTime(shift = true) {
-		if (shift) this.times.shift();
-
-		const last = this.times[this.times.length - 1];
-		const arrival = new Date((last?.arrival.getTime() ?? this.findNextTime()) + this.repeats);
-		const departure = new Date(arrival.getTime() + this.duration);
-
-		const set: ArrDepSet = {
-			arrival,
-			departure,
-			no: ++this.adsCount,
-			delay: 0
-		};
-		this.times.push(set);
-		return set;
-	} */
 
 	modify(): boolean | Promise<boolean> {
 		return false;
