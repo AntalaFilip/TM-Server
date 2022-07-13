@@ -12,12 +12,13 @@ class TrainManager extends ResourceManager {
 		super(realm, `trains`);
 
 		this.trains = new Collection();
-		this.ready = new Promise(res => {
-			this.createAllFromStore()
-				.then(() => {
-					console.log(`TrainManager (${this.id}) ready; loaded ${this.trains.size} trains`);
-					res();
-				});
+		this.ready = new Promise((res) => {
+			this.createAllFromStore().then(() => {
+				console.log(
+					`TrainManager (${this.id}) ready; loaded ${this.trains.size} trains`
+				);
+				res();
+			});
 		});
 	}
 
@@ -28,26 +29,28 @@ class TrainManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.trains.map(t => t.fullMetadata());
+		return this.trains.map((t) => t.fullMetadata());
 	}
 
 	async fromResourceIdentifier(fullId: string): Promise<Train> {
-		if (!await this.db.redis.exists(fullId)) return;
+		if (!(await this.db.redis.exists(fullId))) return;
 
-		const trainMeta = await this.db.get(fullId) as TrainOptions;
+		const trainMeta = (await this.db.get(fullId)) as TrainOptions;
 
 		return new Train(trainMeta);
 	}
 
 	async create(resource: Train | TrainOptions, actor?: User): Promise<Train> {
-		if (actor && !actor.hasPermission('manage trains', this.realm)) throw new Error('No permission!');
+		if (actor && !actor.hasPermission("manage trains", this.realm))
+			throw new Error("No permission!");
 
 		if (!(resource instanceof Train)) {
 			resource = new Train(resource);
 		}
 		if (!(resource instanceof Train)) return;
 
-		if (this.trains.has(resource.id)) throw new Error(`This Train is already created!`);
+		if (this.trains.has(resource.id))
+			throw new Error(`This Train is already created!`);
 
 		this.trains.set(resource.id, resource);
 		await resource.save();
@@ -56,7 +59,9 @@ class TrainManager extends ResourceManager {
 
 	private async createAllFromStore() {
 		const prefix = process.env.REDIS_PREFIX;
-		const allTrainIds = (await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)).map(k => k.slice(prefix.length));
+		const allTrainIds = (
+			await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)
+		).map((k) => k.slice(prefix.length));
 		if (!allTrainIds || allTrainIds.length === 0) return;
 
 		const allTrains = await this.db.redis.mget(allTrainIds);
@@ -65,8 +70,7 @@ class TrainManager extends ResourceManager {
 			try {
 				const v = JSON.parse(r[1]) as TrainOptions;
 				await this.create(v);
-			}
-			catch {
+			} catch {
 				console.warn(`Malformed train data @ ${r[0]}`);
 			}
 		}

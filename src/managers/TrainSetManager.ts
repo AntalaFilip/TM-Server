@@ -14,11 +14,12 @@ class TrainSetManager extends ResourceManager {
 		this.trainsets = new Collection();
 
 		this.ready = new Promise((res) => {
-			this.createAllFromStore()
-				.then(() => {
-					console.log(`TrainSetManager (${this.id}) ready; ${this.trainsets.size} sets loaded`);
-					res();
-				});
+			this.createAllFromStore().then(() => {
+				console.log(
+					`TrainSetManager (${this.id}) ready; ${this.trainsets.size} sets loaded`
+				);
+				res();
+			});
 		});
 	}
 
@@ -29,27 +30,31 @@ class TrainSetManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.trainsets.map(ts => ts.fullMetadata());
+		return this.trainsets.map((ts) => ts.fullMetadata());
 	}
 
-	async create(resource: TrainSet | TrainSetOptions, actor?: User): Promise<TrainSet> {
-		if (actor && !actor.hasPermission('manage stations', this.realm)) throw new Error('No permission!');
+	async create(
+		resource: TrainSet | TrainSetOptions,
+		actor?: User
+	): Promise<TrainSet> {
+		if (actor && !actor.hasPermission("manage stations", this.realm))
+			throw new Error("No permission!");
 
 		if (!(resource instanceof TrainSet)) {
 			resource = new TrainSet(resource);
 		}
 		if (!(resource instanceof TrainSet)) return;
 
-		if (this.trainsets.has(resource.id)) throw new Error(`This TrainSet is already created!`);
+		if (this.trainsets.has(resource.id))
+			throw new Error(`This TrainSet is already created!`);
 
 		this.trainsets.set(resource.id, resource);
 		await resource.save();
 		return resource;
 	}
 
-
 	async fromResourceIdentifier(id: string): Promise<TrainSet> {
-		if (!await this.db.redis.hexists(this.id, id)) return;
+		if (!(await this.db.redis.hexists(this.id, id))) return;
 
 		const setData = await this.db.redis.hget(this.id, id);
 		const setMeta = JSON.parse(setData) as TrainSetOptions;
@@ -64,8 +69,7 @@ class TrainSetManager extends ResourceManager {
 			try {
 				const v = JSON.parse(r[1]) as TrainSetOptions;
 				await this.create(v);
-			}
-			catch {
+			} catch {
 				console.warn(`Malformed trainset data @ ${r[0]}`);
 			}
 		}

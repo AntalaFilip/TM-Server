@@ -10,7 +10,7 @@ interface ResourceData {
 	create(resource: Resource | ResourceOptions): Resource | Promise<Resource>;
 	getOne(id: string): ResourceOptions;
 	getAll(): ResourceOptions[];
-	get(id: string): Resource
+	get(id: string): Resource;
 }
 
 abstract class ResourceManager extends BaseManager implements ResourceData {
@@ -29,17 +29,22 @@ abstract class ResourceManager extends BaseManager implements ResourceData {
 		return managers.get(id);
 	}
 
-	abstract fromResourceIdentifier(fullId: string): Resource | Promise<Resource>;
+	abstract fromResourceIdentifier(
+		fullId: string
+	): Resource | Promise<Resource>;
 
-	abstract get(id: string): Resource
+	abstract get(id: string): Resource;
 
 	abstract getOne(id: string): ResourceOptions;
-	abstract getAll(): ResourceOptions[]
+	abstract getAll(): ResourceOptions[];
 
-	abstract create(resource: Resource | ResourceOptions, actor?: User): Resource | Promise<Resource>;
+	abstract create(
+		resource: Resource | ResourceOptions,
+		actor?: User
+	): Resource | Promise<Resource>;
 
 	key(name: string): string {
-		return `${this.id}:${name}`
+		return `${this.id}:${name}`;
 	}
 }
 

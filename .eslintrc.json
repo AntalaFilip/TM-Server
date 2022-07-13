@@ -1,16 +1,15 @@
 {
 	"extends": [
 		"eslint:recommended",
-		"plugin:@typescript-eslint/recommended"
+		"plugin:@typescript-eslint/recommended",
+		"prettier"
 	],
 	"env": {
 		"node": true,
 		"es6": true
 	},
 	"parser": "@typescript-eslint/parser",
-	"plugins": [
-		"@typescript-eslint"
-	],
+	"plugins": ["@typescript-eslint"],
 	"parserOptions": {
 		"sourceType": "module",
 		"ecmaVersion": 12

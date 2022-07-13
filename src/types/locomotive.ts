@@ -2,23 +2,34 @@ import Movable, { MovableOptions } from "./movable";
 import User from "./user";
 
 interface LocomotiveOptions extends MovableOptions {
-	controller?: User,
+	controller?: User;
 }
 
 class Locomotive extends Movable {
 	constructor(options: LocomotiveOptions) {
-		super('LOCOMOTIVE', options);
+		super("LOCOMOTIVE", options);
 
 		// TODO: sanity check
 		this._controller = options.controller;
 	}
 
 	private _controller: User;
-	public get controller() { return this._controller; }
+	public get controller() {
+		return this._controller;
+	}
 	private set controller(ctl: User) {
 		this._controller = ctl;
 		const trueTimestamp = this.manager.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(this.manager.key(`${this.id}:controllers`), "*", "id", ctl?.id, "type", ctl?.type, "time", trueTimestamp);
+		this.manager.db.redis.xadd(
+			this.manager.key(`${this.id}:controllers`),
+			"*",
+			"id",
+			ctl?.id,
+			"type",
+			ctl?.type,
+			"time",
+			trueTimestamp
+		);
 		this.propertyChange(`controller`, ctl, true);
 	}
 
@@ -26,7 +37,10 @@ class Locomotive extends Movable {
 		return {
 			couplerType: this.couplerType,
 			model: this.model,
-			currentLocation: this.currentLocation && { stationId: this.currentLocation?.station?.id, trackId: this.currentLocation?.track?.id },
+			currentLocation: this.currentLocation && {
+				stationId: this.currentLocation?.station?.id,
+				trackId: this.currentLocation?.track?.id,
+			},
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,
@@ -41,24 +55,37 @@ class Locomotive extends Movable {
 		return {
 			...this.metadata(),
 			controllerId: this.controller?.id,
-		}
+		};
 	}
 
 	fullMetadata() {
 		return {
 			...this.metadata(),
-			currentLocation: this.currentLocation && Object.fromEntries(Object.entries(this.currentLocation).map(([k, v]) => [k, v.publicMetadata()])),
+			currentLocation:
+				this.currentLocation &&
+				Object.fromEntries(
+					Object.entries(this.currentLocation).map(([k, v]) => [
+						k,
+						v.publicMetadata(),
+					])
+				),
 			controller: this.controller?.publicMetadata(),
-		}
+		};
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission('manage movables', this.realm)) throw new Error(`No permission`);
+		if (!actor.hasPermission("manage movables", this.realm))
+			throw new Error(`No permission`);
 		let modified = false;
 
 		// TODO: auditing
-		if (typeof data.controllerId === 'string' && this.realm.client.userManager.get(data.controllerId)) {
-			this.controller = this.realm.client.userManager.get(data.controllerId);
+		if (
+			typeof data.controllerId === "string" &&
+			this.realm.client.userManager.get(data.controllerId)
+		) {
+			this.controller = this.realm.client.userManager.get(
+				data.controllerId
+			);
 			modified = true;
 		}
 

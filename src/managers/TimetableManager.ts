@@ -15,12 +15,17 @@ class TimetableManager extends ResourceManager {
 
 		this.timetables = new Collection();
 
-		this.ready = new Promise(res => {
-			this.createAllFromStore()
-				.then(() => {
-					console.log(`TimetableManager (${this.id}) ready; loaded ${this.timetables.size} timetables. Current active timetable: ${this.realm.activeTimetable?.name ?? 'none'}`);
-					res();
-				});
+		this.ready = new Promise((res) => {
+			this.createAllFromStore().then(() => {
+				console.log(
+					`TimetableManager (${this.id}) ready; loaded ${
+						this.timetables.size
+					} timetables. Current active timetable: ${
+						this.realm.activeTimetable?.name ?? "none"
+					}`
+				);
+				res();
+			});
 		});
 	}
 
@@ -31,30 +36,40 @@ class TimetableManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.timetables.map(tt => tt.fullMetadata());
+		return this.timetables.map((tt) => tt.fullMetadata());
 	}
 
 	async fromResourceIdentifier(fullId: string): Promise<Timetable> {
-		if (!await this.db.redis.exists(fullId)) return;
+		if (!(await this.db.redis.exists(fullId))) return;
 
-		const timetableMeta = await this.db.get(fullId) as TimetableOptions;
+		const timetableMeta = (await this.db.get(fullId)) as TimetableOptions;
 
 		const entriesData = await this.db.redis.hgetall(`${fullId}:entries`);
-		const entries = Object.entries(entriesData).map(([_k, v]) => JSON.parse(v) as TimetableEntryOptions).map(meta => new TimetableEntry(meta));
+		const entries = Object.entries(entriesData)
+			.map(([_k, v]) => JSON.parse(v) as TimetableEntryOptions)
+			.map((meta) => new TimetableEntry(meta));
 		timetableMeta.entries = entries;
 
 		return new Timetable(timetableMeta);
 	}
 
-	async create(resource: Timetable | TimetableOptions, actor?: User): Promise<Timetable> {
-		if (actor && !actor.hasPermission('manage timetables', this.realm)) throw new ForbiddenError(`No permission!`, { tmCode: `ENOPERM`, permission: `manage timetables` });
+	async create(
+		resource: Timetable | TimetableOptions,
+		actor?: User
+	): Promise<Timetable> {
+		if (actor && !actor.hasPermission("manage timetables", this.realm))
+			throw new ForbiddenError(`No permission!`, {
+				tmCode: `ENOPERM`,
+				permission: `manage timetables`,
+			});
 
 		if (!(resource instanceof Timetable)) {
 			resource = new Timetable(resource);
 		}
 		if (!(resource instanceof Timetable)) return;
 
-		if (this.timetables.has(resource.id)) throw new Error(`This Timetable is already created!`);
+		if (this.timetables.has(resource.id))
+			throw new Error(`This Timetable is already created!`);
 
 		this.timetables.set(resource.id, resource);
 		await resource.save();
@@ -63,7 +78,9 @@ class TimetableManager extends ResourceManager {
 
 	private async createAllFromStore() {
 		const prefix = process.env.REDIS_PREFIX;
-		const allTimetableIds = (await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)).map(k => k.slice(prefix.length));
+		const allTimetableIds = (
+			await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)
+		).map((k) => k.slice(prefix.length));
 		if (!allTimetableIds || allTimetableIds.length === 0) return;
 
 		const allTimetables = await this.db.redis.mget(allTimetableIds);
@@ -72,14 +89,20 @@ class TimetableManager extends ResourceManager {
 			try {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as TimetableOptions;
-				const entriesData = await this.db.redis.hgetall(this.key(`${k}:entries`));
-				const entries = Object.entries(entriesData).map(([_k, meta]) => JSON.parse(meta) as TimetableEntryOptions).map(meta => new TimetableEntry(meta));
+				const entriesData = await this.db.redis.hgetall(
+					this.key(`${k}:entries`)
+				);
+				const entries = Object.entries(entriesData)
+					.map(
+						([_k, meta]) =>
+							JSON.parse(meta) as TimetableEntryOptions
+					)
+					.map((meta) => new TimetableEntry(meta));
 				v.entries = entries;
 
 				await this.create(v);
-			}
-			catch {
-				console.warn(`Malformed timetable data @ ${r[0]}`)
+			} catch {
+				console.warn(`Malformed timetable data @ ${r[0]}`);
 			}
 		}
 

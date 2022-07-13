@@ -8,7 +8,7 @@ const DateScalar = new GraphQLScalarType({
 		return value.getTime();
 	},
 	parseValue(value) {
-		if (typeof value != 'number') return null;
+		if (typeof value != "number") return null;
 		return new Date(value);
 	},
 	parseLiteral(ast) {
@@ -16,7 +16,7 @@ const DateScalar = new GraphQLScalarType({
 			return new Date(parseInt(ast.value, 10));
 		}
 		return null;
-	}
+	},
 });
 
 export default DateScalar;

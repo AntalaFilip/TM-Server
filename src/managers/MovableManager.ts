@@ -11,29 +11,37 @@ class MovableManager extends ResourceManager {
 	public readonly ready: Promise<void>;
 
 	constructor(realm: Realm) {
-		super(realm, 'movable');
+		super(realm, "movable");
 
 		this.movables = new Collection();
 
 		this.ready = new Promise((res) => {
-			this.createAllFromStore()
-				.then(() => {
-					console.log(`MovableManager (${this.id}) ready; loaded ${this.movables.size} movables`);
-					res();
-				});
+			this.createAllFromStore().then(() => {
+				console.log(
+					`MovableManager (${this.id}) ready; loaded ${this.movables.size} movables`
+				);
+				res();
+			});
 		});
 	}
 
-	async create(resource: Movable | MovableOptions, actor?: User): Promise<Movable> {
-		if (actor && !actor.hasPermission('manage movables', this.realm)) throw new Error('No permission!');
+	async create(
+		resource: Movable | MovableOptions,
+		actor?: User
+	): Promise<Movable> {
+		if (actor && !actor.hasPermission("manage movables", this.realm))
+			throw new Error("No permission!");
 
 		if (!(resource instanceof Movable)) {
-			if (resource.type === 'LOCOMOTIVE') resource = new Locomotive(resource);
-			else if (resource.type === 'WAGON') resource = new Wagon(resource as WagonOptions);
+			if (resource.type === "LOCOMOTIVE")
+				resource = new Locomotive(resource);
+			else if (resource.type === "WAGON")
+				resource = new Wagon(resource as WagonOptions);
 			else return;
 		}
 
-		if (this.movables.has(resource.id)) throw new Error(`This Movable is already created!`);
+		if (this.movables.has(resource.id))
+			throw new Error(`This Movable is already created!`);
 
 		this.movables.set(resource.id, resource);
 		await resource.save();
@@ -47,7 +55,7 @@ class MovableManager extends ResourceManager {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.movables.map(m => m.fullMetadata());
+		return this.movables.map((m) => m.fullMetadata());
 	}
 
 	getLoco(id: string): Locomotive {
@@ -70,11 +78,13 @@ class MovableManager extends ResourceManager {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as MovableOptions;
 
-				const movable = v.type === 'LOCOMOTIVE' ? new Locomotive(v) : new Wagon(v as WagonOptions);
+				const movable =
+					v.type === "LOCOMOTIVE"
+						? new Locomotive(v)
+						: new Wagon(v as WagonOptions);
 				this.movables.set(k, movable);
-			}
-			catch {
-				console.warn(`Malformed movable data @ ${r[0]}`)
+			} catch {
+				console.warn(`Malformed movable data @ ${r[0]}`);
 			}
 		}
 
@@ -87,14 +97,12 @@ class MovableManager extends ResourceManager {
 
 		try {
 			const movableMeta = JSON.parse(movableData) as MovableOptions;
-			if (movableMeta.type === 'WAGON') {
+			if (movableMeta.type === "WAGON") {
 				return new Wagon(movableMeta as WagonOptions);
-			}
-			else if (movableMeta.type === 'LOCOMOTIVE') {
+			} else if (movableMeta.type === "LOCOMOTIVE") {
 				return new Locomotive(movableMeta);
 			}
-		}
-		catch {
+		} catch {
 			console.warn(`Malformed movable data @ ${id}`);
 			return;
 		}

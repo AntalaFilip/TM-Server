@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 function newUUID(): string {
 	return crypto.randomUUID();

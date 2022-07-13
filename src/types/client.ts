@@ -1,18 +1,18 @@
 import { Server as SIOServer } from "socket.io";
-import http from 'http';
+import http from "http";
 import Collection from "@discordjs/collection";
 import Realm, { RealmOptions } from "./realm";
 import { ResourceData } from "../managers/ResourceManager";
 import Redis from "../helpers/redis";
 import UserManager from "../managers/UserManager";
-import { Application } from 'express';
+import { Application } from "express";
 import createIndexRouter from "../routes";
 import User from "./user";
 import { ForbiddenError } from "apollo-server-core";
 
 interface ClientOptions {
-	io: SIOServer,
-	express: Application,
+	io: SIOServer;
+	express: Application;
 	http: http.Server;
 }
 
@@ -31,40 +31,38 @@ class Client implements ResourceData {
 		this.io = options.io;
 		this.express = options.express;
 		this.http = options.http;
-		this.db = new Redis('');
+		this.db = new Redis("");
 
 		this.realms = new Collection();
 		this.userManager = new UserManager(this);
 
 		this.ready = new Promise((res) => {
-			this.userManager.ready
-				.then(() => {
-					this.createAllFromStore()
-						.then(() => {
-							const httpRouter = createIndexRouter(this);
-							this.express.use(httpRouter);
+			this.userManager.ready.then(() => {
+				this.createAllFromStore().then(() => {
+					const httpRouter = createIndexRouter(this);
+					this.express.use(httpRouter);
 
-							console.log(`Client ready; ${this.realms.size} Realms active`);
-							res();
-						});
+					console.log(
+						`Client ready; ${this.realms.size} Realms active`
+					);
+					res();
 				});
-
+			});
 		});
 	}
 
 	get(id: string): Realm {
-
 		return this.realms.get(id);
 	}
 	getOne(id: string) {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.realms.map(r => r.publicMetadata());
+		return this.realms.map((r) => r.publicMetadata());
 	}
 
 	private async createAllFromStore() {
-		const allRealms = await this.db.redis.hgetall('realms');
+		const allRealms = await this.db.redis.hgetall("realms");
 		const arr = Object.entries(allRealms);
 		for (const r of arr) {
 			const v = JSON.parse(r[1]) as RealmOptions;
@@ -75,8 +73,13 @@ class Client implements ResourceData {
 	}
 
 	async create(resource: Realm | RealmOptions, actor?: User): Promise<Realm> {
-		if (actor && !actor.hasPermission(`manage realm`)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage realm` });
-		if (this.realms.has(resource.id)) throw new Error(`This Realm already exists!`);
+		if (actor && !actor.hasPermission(`manage realm`))
+			throw new ForbiddenError(`No permission`, {
+				tmCode: `ENOPERM`,
+				permission: `manage realm`,
+			});
+		if (this.realms.has(resource.id))
+			throw new Error(`This Realm already exists!`);
 
 		if (!(resource instanceof Realm)) {
 			resource = new Realm(this, resource);
@@ -91,14 +94,13 @@ class Client implements ResourceData {
 
 	/** Creates a Realm from a resource identifier (redis key/resource id) */
 	async fromResourceIdentifier(id: string): Promise<Realm> {
-		const realmData = await this.db.redis.hget('realms', id);
+		const realmData = await this.db.redis.hget("realms", id);
 		if (!realmData) return;
 
 		const realmMeta = JSON.parse(realmData) as RealmOptions;
 
 		return new Realm(this, realmMeta);
 	}
-
 }
 
 export default Client;

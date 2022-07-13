@@ -1,8 +1,11 @@
 import RedisClient from "ioredis";
-import { config } from 'dotenv';
+import { config } from "dotenv";
 config();
 
-const redis = new RedisClient(process.env.REDIS_URL, { password: process.env.REDIS_PASS, keyPrefix: process.env.REDIS_PREFIX });
+const redis = new RedisClient(process.env.REDIS_URL, {
+	password: process.env.REDIS_PASS,
+	keyPrefix: process.env.REDIS_PREFIX,
+});
 
 /**
  * Redis ID Structure as follows:
@@ -21,18 +24,20 @@ class Redis {
 		this.redis = redis;
 	}
 
-	async add(key: string, data: object | number | string | Buffer): Promise<boolean> {
-		if (typeof data === 'object') data = JSON.stringify(data);
+	async add(
+		key: string,
+		data: object | number | string | Buffer
+	): Promise<boolean> {
+		if (typeof data === "object") data = JSON.stringify(data);
 
-		return (await this.redis.set(`${this.name}:${key}`, data)) === 'OK';
+		return (await this.redis.set(`${this.name}:${key}`, data)) === "OK";
 	}
 
 	async get(key: string): Promise<unknown> {
 		const data = await this.redis.get(key);
 		try {
 			return JSON.parse(data);
-		}
-		catch {
+		} catch {
 			if (!Number.isNaN(data)) return Number(data);
 
 			return data;

@@ -3,9 +3,9 @@ import ResourceManager from "../managers/ResourceManager";
 import User from "./user";
 
 interface ResourceOptions {
-	id?: string,
-	realmId: string,
-	managerId: string,
+	id?: string;
+	realmId: string;
+	managerId: string;
 }
 
 abstract class Resource {
@@ -13,10 +13,14 @@ abstract class Resource {
 	public readonly realmId: string;
 	public readonly type: string;
 
-	public get realm() { return this.manager.realm; }
+	public get realm() {
+		return this.manager.realm;
+	}
 
 	public readonly managerId: string;
-	public get manager() { return ResourceManager.get(this.managerId); }
+	public get manager() {
+		return ResourceManager.get(this.managerId);
+	}
 
 	constructor(type: string, options: ResourceOptions) {
 		this.id = options.id ?? newUUID();
@@ -34,10 +38,19 @@ abstract class Resource {
 	 */
 	protected propertyChange(prop: string, value: unknown, noSave = false) {
 		if (!noSave) this.save();
-		return this.realm.ionsp.emit('propertyChange', this.id, this.type, prop, value);
+		return this.realm.ionsp.emit(
+			"propertyChange",
+			this.id,
+			this.type,
+			prop,
+			value
+		);
 	}
 
-	abstract modify(data: Record<string, unknown>, actor?: User): boolean | Promise<boolean>
+	abstract modify(
+		data: Record<string, unknown>,
+		actor?: User
+	): boolean | Promise<boolean>;
 	abstract save(): boolean | Promise<boolean>;
 	/** Returns metadata required to reconstruct the Resource */
 	abstract metadata(): ResourceOptions;

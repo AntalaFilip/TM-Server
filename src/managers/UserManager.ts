@@ -1,9 +1,9 @@
 import Client from "../types/client";
-import BaseManager from '../managers/BaseManager';
+import BaseManager from "../managers/BaseManager";
 import { ResourceData } from "./ResourceManager";
 import User, { UserOptions } from "../types/user";
 import Collection from "@discordjs/collection";
-import crypto from 'crypto';
+import crypto from "crypto";
 import { ForbiddenError } from "apollo-server-core";
 
 class UserManager extends BaseManager implements ResourceData {
@@ -16,27 +16,34 @@ class UserManager extends BaseManager implements ResourceData {
 		this.users = new Collection();
 
 		this.ready = new Promise((res) => {
-			this.createAllFromStore()
-				.then(async () => {
-					if (this.users.size === 0) {
-						console.warn(`UserManager attempted to load with no users available!`);
-						console.warn(`Automatically creating new user...`);
-						const pwd = crypto.randomBytes(8).toString('hex');
+			this.createAllFromStore().then(async () => {
+				if (this.users.size === 0) {
+					console.warn(
+						`UserManager attempted to load with no users available!`
+					);
+					console.warn(`Automatically creating new user...`);
+					const pwd = crypto.randomBytes(8).toString("hex");
 
-						const user = await this.create({
-							name: 'Administrator',
-							username: 'administrator',
-							realmId: null,
-							managerId: this.id,
-							passwordHash: User.hashPassword(pwd),
-							admin: true,
-						});
-						console.warn(`Created new administrative user '${user.username}' with password '${pwd}'`);
-					}
+					const user = await this.create({
+						name: "Administrator",
+						username: "administrator",
+						realmId: null,
+						managerId: this.id,
+						passwordHash: User.hashPassword(pwd),
+						admin: true,
+					});
+					console.warn(
+						`Created new administrative user '${user.username}' with password '${pwd}'`
+					);
+				}
 
-					console.log(`UserManager ready; ${this.users.size} users loaded, ${this.users.filter(u => !u.disabled).size} users active`);
-					res();
-				});
+				console.log(
+					`UserManager ready; ${this.users.size} users loaded, ${
+						this.users.filter((u) => !u.disabled).size
+					} users active`
+				);
+				res();
+			});
 		});
 	}
 
@@ -47,17 +54,22 @@ class UserManager extends BaseManager implements ResourceData {
 		return this.get(id)?.fullMetadata();
 	}
 	getAll() {
-		return this.users.map(u => u.publicMetadata());
+		return this.users.map((u) => u.publicMetadata());
 	}
 
 	async create(resource: User | UserOptions, actor?: User): Promise<User> {
-		if (actor && !actor.hasPermission(`manage users`)) throw new ForbiddenError(`No permission!`, { tmCode: `ENOPERM`, permission: `manage users` });
+		if (actor && !actor.hasPermission(`manage users`))
+			throw new ForbiddenError(`No permission!`, {
+				tmCode: `ENOPERM`,
+				permission: `manage users`,
+			});
 
 		if (!(resource instanceof User)) {
 			resource = new User(resource);
 		}
 
-		if (this.users.has(resource.id)) throw new Error(`This User is already created!`);
+		if (this.users.has(resource.id))
+			throw new Error(`This User is already created!`);
 
 		this.users.set(resource.id, resource);
 		await resource.save();
@@ -65,7 +77,7 @@ class UserManager extends BaseManager implements ResourceData {
 	}
 
 	async fromResourceIdentifier(id: string): Promise<User> {
-		const userData = await this.db.redis.hget('users', id);
+		const userData = await this.db.redis.hget("users", id);
 		const userMeta = JSON.parse(userData) as UserOptions;
 
 		return new User(userMeta);
@@ -78,8 +90,7 @@ class UserManager extends BaseManager implements ResourceData {
 			try {
 				const v = JSON.parse(r[1]) as UserOptions;
 				await this.create(v);
-			}
-			catch (err) {
+			} catch (err) {
 				console.warn(`Malformed user data @ ${r[0]}`);
 			}
 		}

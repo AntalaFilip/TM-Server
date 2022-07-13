@@ -4,11 +4,11 @@ import User from "../types/user";
 import BaseManager from "./BaseManager";
 
 interface TimeOptions {
-	startPoint: number,
-	speedModifier: number,
-	trueElapsed?: number,
-	elapsed?: number,
-	running?: boolean,
+	startPoint: number;
+	speedModifier: number;
+	trueElapsed?: number;
+	elapsed?: number;
+	running?: boolean;
 }
 
 /**
@@ -31,7 +31,9 @@ class TimeManager extends BaseManager {
 
 	private _running = false;
 	/** Whether the time is currently running */
-	public get running() { return this._running }
+	public get running() {
+		return this._running;
+	}
 	private set running(state: boolean) {
 		this.save(false, true);
 		this._running = state;
@@ -40,7 +42,9 @@ class TimeManager extends BaseManager {
 
 	private _startPoint: number;
 	/** The starting point of true realm time in milliseconds */
-	public get startPoint() { return this._startPoint }
+	public get startPoint() {
+		return this._startPoint;
+	}
 	private set startPoint(point: number) {
 		this.save(false, true);
 		this._startPoint = point;
@@ -49,7 +53,9 @@ class TimeManager extends BaseManager {
 
 	private _speedModifier: number;
 	/** The speed modifier of the true realm time opposed to real time */
-	public get speedModifier() { return this._speedModifier }
+	public get speedModifier() {
+		return this._speedModifier;
+	}
 	private set speedModifier(speed: number) {
 		this.save(false, true);
 		if (speed > 1000) speed = 1000;
@@ -59,17 +65,25 @@ class TimeManager extends BaseManager {
 
 	private _elapsed: number;
 	/** Time of the last save */
-	public get elapsed() { return this._elapsed }
+	public get elapsed() {
+		return this._elapsed;
+	}
 
 	private _trueElapsed: number;
 	/** True elapsed time (TrueMS) at last data save */
-	public get trueElapsed() { return this._trueElapsed }
+	public get trueElapsed() {
+		return this._trueElapsed;
+	}
 
 	/** How many real-time milliseconds passed since last save */
-	public get realDiff() { return Math.abs(Date.now() - this.elapsed) }
+	public get realDiff() {
+		return Math.abs(Date.now() - this.elapsed);
+	}
 
 	/** How many true realm-time milliseconds passed since last save */
-	public get trueDiff() { return this.realDiff * this.speedModifier }
+	public get trueDiff() {
+		return this.realDiff * this.speedModifier;
+	}
 
 	/** How many true realm-time milliseconds passed from the start */
 	public get trueMs() {
@@ -78,10 +92,19 @@ class TimeManager extends BaseManager {
 	}
 
 	/** Current true realm-time Date, according to the starting point */
-	public get trueDate() { return new Date(this.trueMs + this.startPoint) }
+	public get trueDate() {
+		return new Date(this.trueMs + this.startPoint);
+	}
 
 	/** Current formatted realm time as HH:mm:ss */
-	public get formattedTrueTime() { return this.trueDate.toLocaleTimeString('sk-SK', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', second: '2-digit' }) }
+	public get formattedTrueTime() {
+		return this.trueDate.toLocaleTimeString("sk-SK", {
+			timeZone: "UTC",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+		});
+	}
 
 	constructor(realm: Realm, options?: TimeOptions) {
 		super(`realms:${realm.id}:time`, realm.ionsp.server, realm.client);
@@ -91,11 +114,12 @@ class TimeManager extends BaseManager {
 		this.ready = new Promise(async (res, rej) => {
 			try {
 				if (!options) {
-					const meta = await this.db.redis.get(`${this.id}:metadata`) ?? '{}';
+					const meta =
+						(await this.db.redis.get(`${this.id}:metadata`)) ??
+						"{}";
 					try {
 						options = JSON.parse(meta);
-					}
-					catch {
+					} catch {
 						// TODO: do not load with malformed data / disable realm
 						console.warn(`Malformed Time data @ Realm ${realm.id}`);
 					}
@@ -103,25 +127,39 @@ class TimeManager extends BaseManager {
 
 				this._startPoint = options?.startPoint ?? 0;
 				// max allowed speed is 1000x
-				this._speedModifier = (options?.speedModifier > 1000 ? 1000 : options?.speedModifier) ?? 1;
+				this._speedModifier =
+					(options?.speedModifier > 1000
+						? 1000
+						: options?.speedModifier) ?? 1;
 				this._elapsed = options?.elapsed ?? Date.now();
 				this._trueElapsed = options?.trueElapsed ?? 0;
 
 				await this.save();
-				console.log(`TimeManager (${this.id}) ready; current time: ${this.trueDate.toUTCString()}`)
+				console.log(
+					`TimeManager (${
+						this.id
+					}) ready; current time: ${this.trueDate.toUTCString()}`
+				);
 				res();
-			}
-			catch (err) {
+			} catch (err) {
 				rej(err);
 			}
 		});
 	}
 
-	get(): null { return null }
-	getOne(): null { return null }
-	getAll() { return this.metadata() }
+	get(): null {
+		return null;
+	}
+	getOne(): null {
+		return null;
+	}
+	getAll() {
+		return this.metadata();
+	}
 
-	fromResourceIdentifier(): null { return null }
+	fromResourceIdentifier(): null {
+		return null;
+	}
 
 	/** Returns all the necessary data to reconstruct the Time Manager and calculate the time */
 	metadata(): TimeOptions {
@@ -131,31 +169,42 @@ class TimeManager extends BaseManager {
 			trueElapsed: this.trueMs,
 			elapsed: this.elapsed,
 			running: this.running,
-		}
+		};
 	}
 
 	setRunning(state: boolean, actor: User) {
-		if (!actor.hasPermission('control time', this.realm) && !actor.hasPermission('manage time', this.realm)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `control time` });
+		if (
+			!actor.hasPermission("control time", this.realm) &&
+			!actor.hasPermission("manage time", this.realm)
+		)
+			throw new ForbiddenError(`No permission`, {
+				tmCode: `ENOPERM`,
+				permission: `control time`,
+			});
 
 		// TODO: auditing
 		this.running = state;
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission('manage time', this.realm)) throw new ForbiddenError(`No permission`, { tmCode: `ENOPERM`, permission: `manage time` });
+		if (!actor.hasPermission("manage time", this.realm))
+			throw new ForbiddenError(`No permission`, {
+				tmCode: `ENOPERM`,
+				permission: `manage time`,
+			});
 		let modified = false;
 
 		// TODO: auditing
 
-		if (typeof data.startPoint === 'number') {
+		if (typeof data.startPoint === "number") {
 			this.startPoint = data.startPoint;
 			modified = true;
 		}
-		if (typeof data.speedModifier === 'number') {
+		if (typeof data.speedModifier === "number") {
 			this.speedModifier = data.speedModifier;
 			modified = true;
 		}
-		if (typeof data.running === 'boolean') {
+		if (typeof data.running === "boolean") {
 			this.running = data.running;
 			modified = true;
 		}
@@ -177,8 +226,8 @@ class TimeManager extends BaseManager {
 		this._elapsed = Date.now();
 
 		const meta = this.metadata();
-		if (bc) this.realm.ionsp.emit('time metadata', meta);
-		if (!memoryOnly) await this.db.add('metadata', meta);
+		if (bc) this.realm.ionsp.emit("time metadata", meta);
+		if (!memoryOnly) await this.db.add("metadata", meta);
 
 		return true;
 	}

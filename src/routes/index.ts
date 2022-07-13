@@ -1,7 +1,7 @@
-import Express from 'express';
-import Client from '../types/client';
-import createAuthRouter from './auth';
-import cookieParser from 'cookie-parser';
+import Express from "express";
+import Client from "../types/client";
+import createAuthRouter from "./auth";
+import cookieParser from "cookie-parser";
 
 function createIndexRouter(client: Client) {
 	const router = Express.Router();
@@ -9,7 +9,7 @@ function createIndexRouter(client: Client) {
 
 	const authRouter = createAuthRouter(client);
 
-	router.use('/auth', authRouter);
+	router.use("/auth", authRouter);
 
 	return router;
 }

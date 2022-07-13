@@ -4,91 +4,121 @@ import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
 
 interface TimetableEntryOptions extends ResourceOptions {
-	trainId: string,
-	stationId: string,
-	trackId: string,
-	setIds?: string[],
-	locomotiveId: string,
-	start: Date,
-	repeats: number,
-	duration: number,
-	usedFrom?: Date,
-	usedTill?: Date,
-	current?: ArrDepSet,
-	adsCount?: number,
-	cancelledAds?: number[],
-	delayedAds?: [number, number][]
+	trainId: string;
+	stationId: string;
+	trackId: string;
+	setIds?: string[];
+	locomotiveId: string;
+	start: Date;
+	repeats: number;
+	duration: number;
+	usedFrom?: Date;
+	usedTill?: Date;
+	current?: ArrDepSet;
+	adsCount?: number;
+	cancelledAds?: number[];
+	delayedAds?: [number, number][];
 }
 
 class TimetableEntry extends Resource {
 	public readonly ttId: string;
-	public get timetable(): Timetable { return this.realm.timetableManager.get(this.ttId); }
+	public get timetable(): Timetable {
+		return this.realm.timetableManager.get(this.ttId);
+	}
 
 	private _trainId: string;
-	public get trainId() { return this._trainId; }
+	public get trainId() {
+		return this._trainId;
+	}
 	private set trainId(id: string) {
 		this._trainId = id;
 		this.propertyChange(`trainId`, id);
 	}
-	public get train() { return this.realm.trainManager.get(this.trainId); }
+	public get train() {
+		return this.realm.trainManager.get(this.trainId);
+	}
 
 	private _stationId: string;
-	public get stationId() { return this._stationId; }
+	public get stationId() {
+		return this._stationId;
+	}
 	private set stationId(id: string) {
 		this._stationId = id;
 		this.propertyChange(`stationId`, id);
 	}
-	public get station() { return this.realm.stationManager.get(this.stationId); }
+	public get station() {
+		return this.realm.stationManager.get(this.stationId);
+	}
 
 	private _trackId: string;
-	public get trackId() { return this._trackId; }
+	public get trackId() {
+		return this._trackId;
+	}
 	private set trackId(id: string) {
 		this._trackId = id;
 		this.propertyChange(`trackId`, id);
 	}
-	public get track() { return this.station.tracks.get(this.trackId); }
+	public get track() {
+		return this.station.tracks.get(this.trackId);
+	}
 
 	public readonly setIds: string[];
-	public get sets() { return this.setIds.map(id => this.realm.trainSetManager.get(id)); }
+	public get sets() {
+		return this.setIds.map((id) => this.realm.trainSetManager.get(id));
+	}
 
 	private _locomotiveId: string;
-	public get locomotiveId() { return this._locomotiveId; }
+	public get locomotiveId() {
+		return this._locomotiveId;
+	}
 	private set locomotiveId(id: string) {
 		this._locomotiveId = id;
 		this.propertyChange(`locomotiveId`, id);
 	}
-	public get locomotive() { return this.realm.movableManager.getLoco(this.locomotiveId); }
+	public get locomotive() {
+		return this.realm.movableManager.getLoco(this.locomotiveId);
+	}
 
 	private _usedFrom: Date;
-	public get usedFrom() { return this._usedFrom; }
+	public get usedFrom() {
+		return this._usedFrom;
+	}
 	private set usedFrom(date: Date) {
 		this._usedFrom = date;
 		this.propertyChange(`usedFrom`, date);
 	}
 
 	private _usedTill: Date;
-	public get usedTill() { return this._usedTill; }
+	public get usedTill() {
+		return this._usedTill;
+	}
 	private set usedTill(date: Date) {
 		this._usedTill = date;
 		this.propertyChange(`usedTill`, date);
 	}
 
 	private _repeats: number;
-	public get repeats() { return this._repeats; }
+	public get repeats() {
+		return this._repeats;
+	}
 	private set repeats(ms: number) {
 		this._repeats = ms;
 		this.propertyChange(`repeats`, ms);
 	}
 
 	private _start: Date;
-	public get start() { return this._start; }
+	public get start() {
+		return this._start;
+	}
 	private set start(date: Date) {
 		this.start = date;
 		this.propertyChange(`start`, date);
 	}
 
 	private _duration: number;
-	public get duration() { return this._duration; }
+	public get duration() {
+		return this._duration;
+	}
 	private set duration(length: number) {
 		this._duration = length;
 		this.propertyChange(`duration`, length);
@@ -97,18 +127,27 @@ class TimetableEntry extends Resource {
 	public get times(): ArrDepSet[] {
 		const times = [];
 		// we want to generate the last entry as well, to make sure that current trains will have some reference
-		for (let i = -1; i < (this.timetable.genCount - 1); i++) {
+		for (let i = -1; i < this.timetable.genCount - 1; i++) {
 			const no = this.adsCount + i;
-			const set = new ArrDepSet({ no, entryId: this.id, timetableId: this.timetable.id, managerId: this.managerId });
+			const set = new ArrDepSet({
+				no,
+				entryId: this.id,
+				timetableId: this.timetable.id,
+				managerId: this.managerId,
+			});
 			times.push(set);
 		}
 		return times;
 	}
 
-	public get current() { return this.times[1]; }
+	public get current() {
+		return this.times[1];
+	}
 
 	private _adsCount: number;
-	public get adsCount() { return this._adsCount; }
+	public get adsCount() {
+		return this._adsCount;
+	}
 	private set adsCount(count: number) {
 		if (count <= this._adsCount) return;
 		this._adsCount = count;
@@ -170,16 +209,16 @@ class TimetableEntry extends Resource {
 			trainId: this.trainId,
 			usedFrom: this.usedFrom,
 			usedTill: this.usedTill,
-			setIds: this.sets.map(s => s.id),
-			adsCount: this.adsCount
+			setIds: this.sets.map((s) => s.id),
+			adsCount: this.adsCount,
 		};
 	}
 
 	publicMetadata() {
 		return {
 			...this.metadata(),
-			times: this.times.slice(0, 5)
-		}
+			times: this.times.slice(0, 5),
+		};
 	}
 
 	fullMetadata() {
@@ -189,13 +228,16 @@ class TimetableEntry extends Resource {
 			station: this.station?.publicMetadata(),
 			track: this.track?.publicMetadata(),
 			train: this.train.publicMetadata(),
-			sets: this.sets.map(s => s.publicMetadata()),
+			sets: this.sets.map((s) => s.publicMetadata()),
 			times: this.times,
-		}
+		};
 	}
 
 	async save(): Promise<boolean> {
-		await this.manager.db.redis.hset(this.manager.key(`${this.timetable.id}:entries`), [this.id, JSON.stringify(this.metadata())]);
+		await this.manager.db.redis.hset(
+			this.manager.key(`${this.timetable.id}:entries`),
+			[this.id, JSON.stringify(this.metadata())]
+		);
 
 		return true;
 	}

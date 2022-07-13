@@ -8,11 +8,18 @@ function createAuthRouter(client: Client) {
 	const router = Express.Router();
 	router.use(Express.urlencoded({ extended: true }));
 
-	router.post('/basic/register', authenticate.bind(undefined, false, 'user administration', client), register.bind(undefined, client));
-	router.post('/basic/login', login.bind(undefined, client));
-	router.post('/basic/logout', (req, res) => res.clearCookie('authToken', { maxAge: 0 }).status(204).send());
+	router.post(
+		"/basic/register",
+		authenticate.bind(undefined, false, "user administration", client),
+		register.bind(undefined, client)
+	);
+	router.post("/basic/login", login.bind(undefined, client));
+	router.post("/basic/logout", (req, res) =>
+		res.clearCookie("authToken", { maxAge: 0 }).status(204).send()
+	);
 
-	router.get('/basic/me',
+	router.get(
+		"/basic/me",
 		Express.json(),
 		authenticate.bind(undefined, true, undefined, client),
 		(req: TMAuthRequest, res) => {
@@ -23,7 +30,7 @@ function createAuthRouter(client: Client) {
 			delete data.managerId;
 
 			return res.send({ user: data });
-		},
+		}
 	);
 
 	return router;
