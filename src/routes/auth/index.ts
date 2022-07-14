@@ -24,10 +24,7 @@ function createAuthRouter(client: Client) {
 		authenticate.bind(undefined, true, undefined, client),
 		(req: TMAuthRequest, res) => {
 			if (!req.auth) return res.status(500).send();
-			const data = req.auth.metadata();
-
-			delete data.passwordHash;
-			delete data.managerId;
+			const data = req.auth.publicMetadata();
 
 			return res.send({ user: data });
 		}
