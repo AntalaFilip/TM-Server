@@ -17,8 +17,8 @@ class MovableManager extends ResourceManager {
 
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
-				console.log(
-					`MovableManager (${this.id}) ready; loaded ${this.movables.size} movables`
+				this.logger.debug(
+					`Ready; loaded ${this.movables.size} movables`
 				);
 				res();
 			});
@@ -84,7 +84,7 @@ class MovableManager extends ResourceManager {
 						: new Wagon(v as WagonOptions);
 				this.movables.set(k, movable);
 			} catch {
-				console.warn(`Malformed movable data @ ${r[0]}`);
+				this.logger.warn(`Malformed movable data @ ${r[0]}`);
 			}
 		}
 
@@ -103,7 +103,7 @@ class MovableManager extends ResourceManager {
 				return new Locomotive(movableMeta);
 			}
 		} catch {
-			console.warn(`Malformed movable data @ ${id}`);
+			this.logger.warn(`Malformed movable data @ ${id}`);
 			return;
 		}
 	}

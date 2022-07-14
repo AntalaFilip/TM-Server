@@ -9,6 +9,7 @@ import { Application } from "express";
 import createIndexRouter from "../routes";
 import User from "./user";
 import { ForbiddenError } from "apollo-server-core";
+import TMLogger from "../helpers/logger";
 
 interface ClientOptions {
 	io: SIOServer;
@@ -21,6 +22,7 @@ class Client implements ResourceData {
 	public readonly express: Application;
 	public readonly http: http.Server;
 	public readonly db: Redis;
+	public readonly logger: TMLogger;
 
 	public readonly realms: Collection<string, Realm>;
 
@@ -32,6 +34,7 @@ class Client implements ResourceData {
 		this.express = options.express;
 		this.http = options.http;
 		this.db = new Redis("");
+		this.logger = new TMLogger(`TRAINMANAGER`);
 
 		this.realms = new Collection();
 		this.userManager = new UserManager(this);
@@ -42,7 +45,7 @@ class Client implements ResourceData {
 					const httpRouter = createIndexRouter(this);
 					this.express.use(httpRouter);
 
-					console.log(
+					this.logger.info(
 						`Client ready; ${this.realms.size} Realms active`
 					);
 					res();
@@ -78,6 +81,7 @@ class Client implements ResourceData {
 				tmCode: `ENOPERM`,
 				permission: `manage realm`,
 			});
+
 		if (this.realms.has(resource.id))
 			throw new Error(`This Realm already exists!`);
 

@@ -1,4 +1,5 @@
 import { ForbiddenError } from "apollo-server-core";
+import TMLogger from "../helpers/logger";
 import Realm from "../types/realm";
 import User from "../types/user";
 import BaseManager from "./BaseManager";
@@ -28,6 +29,7 @@ interface TimeOptions {
 class TimeManager extends BaseManager {
 	public readonly realm: Realm;
 	public readonly ready: Promise<void>;
+	public override readonly logger: TMLogger;
 
 	private _running = false;
 	/** Whether the time is currently running */
@@ -109,6 +111,7 @@ class TimeManager extends BaseManager {
 	constructor(realm: Realm, options?: TimeOptions) {
 		super(`realms:${realm.id}:time`, realm.ionsp.server, realm.client);
 		this.realm = realm;
+		this.logger = new TMLogger(`TIME:${realm.id}`, `TIME:${realm.shortId}`);
 
 		// eslint-disable-next-line no-async-promise-executor
 		this.ready = new Promise(async (res, rej) => {
@@ -121,7 +124,9 @@ class TimeManager extends BaseManager {
 						options = JSON.parse(meta);
 					} catch {
 						// TODO: do not load with malformed data / disable realm
-						console.warn(`Malformed Time data @ Realm ${realm.id}`);
+						this.logger.warn(
+							`Malformed Time data @ Realm ${realm.id}`
+						);
 					}
 				}
 
@@ -135,10 +140,8 @@ class TimeManager extends BaseManager {
 				this._trueElapsed = options?.trueElapsed ?? 0;
 
 				await this.save();
-				console.log(
-					`TimeManager (${
-						this.id
-					}) ready; current time: ${this.trueDate.toUTCString()}`
+				this.logger.debug(
+					`Ready; current time: ${this.trueDate.toUTCString()}`
 				);
 				res();
 			} catch (err) {

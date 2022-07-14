@@ -1,4 +1,5 @@
 import { Namespace as SIONamespace } from "socket.io";
+import TMLogger from "../helpers/logger";
 import Redis from "../helpers/redis";
 import MovableManager from "../managers/MovableManager";
 import StationManager from "../managers/StationManager";
@@ -21,6 +22,7 @@ interface RealmOptions extends ResourceOptions {
 
 class Realm extends Resource {
 	public readonly id: string;
+	public readonly logger: TMLogger;
 
 	private _ownerId: string;
 	public get ownerId() {
@@ -81,6 +83,7 @@ class Realm extends Resource {
 		this._name = options.name || this.id;
 		this.ionsp = options.ionsp ?? this.client.io.of(`/realms/${this.id}`);
 		this.db = options.db ?? new Redis(`realms:${this.id}`);
+		this.logger = new TMLogger(`REALM:${this.id}`, `REALM:${this.shortId}`);
 
 		this.stationManager = new StationManager(this);
 		this.timeManager = new TimeManager(this);
@@ -101,9 +104,15 @@ class Realm extends Resource {
 
 				if (this.activeTimetable) {
 					try {
+						this.logger.verbose(`Running Timetable checks...`);
 						const c = this.activeTimetable.runChecks();
 						if (!c) throw new Error("invalid timetable");
 					} catch (err) {
+						this.logger.warn(
+							`Invalid active timetable (${this._activeTimetableId.slice(
+								this._activeTimetableId.length - 6
+							)})! Resetting...`
+						);
 						this._activeTimetableId = null;
 						// TODO: notify
 					}
@@ -111,7 +120,7 @@ class Realm extends Resource {
 
 				await this.save();
 
-				console.log(`Realm (${this.id}) ready!`);
+				this.logger.info(`Realm (...${this.shortId}) ready!`);
 				res();
 			} catch (err) {
 				rej(err);
@@ -121,6 +130,7 @@ class Realm extends Resource {
 
 	setActiveTimetable(timetable: Timetable) {
 		if (!timetable.runChecks()) return false;
+		this.logger.verbose(`Setting active timetable (${timetable.id})`);
 
 		this.activeTimetableId = timetable.id;
 		return true;

@@ -17,8 +17,8 @@ class TimetableManager extends ResourceManager {
 
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
-				console.log(
-					`TimetableManager (${this.id}) ready; loaded ${
+				this.logger.debug(
+					`Ready; loaded ${
 						this.timetables.size
 					} timetables. Current active timetable: ${
 						this.realm.activeTimetable?.name ?? "none"
@@ -102,7 +102,7 @@ class TimetableManager extends ResourceManager {
 
 				await this.create(v);
 			} catch {
-				console.warn(`Malformed timetable data @ ${r[0]}`);
+				this.logger.warn(`Malformed timetable data @ ${r[0]}`);
 			}
 		}
 
