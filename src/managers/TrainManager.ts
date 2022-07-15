@@ -14,8 +14,8 @@ class TrainManager extends ResourceManager {
 		this.trains = new Collection();
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
-				console.log(
-					`TrainManager (${this.id}) ready; loaded ${this.trains.size} trains`
+				this.logger.debug(
+					`Ready; loaded ${this.trains.size} trains`
 				);
 				res();
 			});
@@ -71,7 +71,7 @@ class TrainManager extends ResourceManager {
 				const v = JSON.parse(r[1]) as TrainOptions;
 				await this.create(v);
 			} catch {
-				console.warn(`Malformed train data @ ${r[0]}`);
+				this.logger.warn(`Malformed train data @ ${r[0]}`);
 			}
 		}
 	}

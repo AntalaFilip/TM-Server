@@ -18,10 +18,10 @@ class UserManager extends BaseManager implements ResourceData {
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(async () => {
 				if (this.users.size === 0) {
-					console.warn(
+					this.logger.warn(
 						`UserManager attempted to load with no users available!`
 					);
-					console.warn(`Automatically creating new user...`);
+					this.logger.warn(`Automatically creating new user...`);
 					const pwd = crypto.randomBytes(8).toString("hex");
 
 					const user = await this.create({
@@ -32,13 +32,13 @@ class UserManager extends BaseManager implements ResourceData {
 						passwordHash: User.hashPassword(pwd),
 						admin: true,
 					});
-					console.warn(
+					this.logger.warn(
 						`Created new administrative user '${user.username}' with password '${pwd}'`
 					);
 				}
 
-				console.log(
-					`UserManager ready; ${this.users.size} users loaded, ${
+				this.logger.debug(
+					`Ready; ${this.users.size} users loaded, ${
 						this.users.filter((u) => !u.disabled).size
 					} users active`
 				);
@@ -91,7 +91,7 @@ class UserManager extends BaseManager implements ResourceData {
 				const v = JSON.parse(r[1]) as UserOptions;
 				await this.create(v);
 			} catch (err) {
-				console.warn(`Malformed user data @ ${r[0]}`);
+				this.logger.warn(`Malformed user data @ ${r[0]}`);
 			}
 		}
 

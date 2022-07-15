@@ -10,6 +10,7 @@ interface ResourceOptions {
 
 abstract class Resource {
 	public readonly id: string;
+	public readonly shortId: string;
 	public readonly realmId: string;
 	public readonly type: string;
 
@@ -24,6 +25,7 @@ abstract class Resource {
 
 	constructor(type: string, options: ResourceOptions) {
 		this.id = options.id ?? newUUID();
+		this.shortId = this.id.slice(this.id.length - 6);
 		this.realmId = options.realmId;
 		this.managerId = options.managerId;
 		this.type = type;

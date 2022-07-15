@@ -1,3 +1,4 @@
+import TMLogger from "../helpers/logger";
 import Realm from "../types/realm";
 import Resource, { ResourceOptions } from "../types/resource";
 import User from "../types/user";
@@ -16,11 +17,16 @@ interface ResourceData {
 abstract class ResourceManager extends BaseManager implements ResourceData {
 	readonly realm: Realm;
 	readonly type: string;
+	override readonly logger: TMLogger;
 
 	constructor(realm: Realm, type: string) {
 		super(`realms:${realm.id}:${type}`, realm.ionsp.server, realm.client);
 		this.realm = realm;
 		this.type = type;
+		this.logger = new TMLogger(
+			`${this.type.toUpperCase()}:${this.realm.id}`,
+			`${this.type.toUpperCase()}:${this.realm.shortId}`
+		);
 
 		managers.set(this.id, this);
 	}

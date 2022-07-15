@@ -17,8 +17,8 @@ class StationManager extends ResourceManager {
 
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
-				console.log(
-					`StationManager (${this.id}) ready; loaded ${this.stations.size} stations`
+				this.logger.debug(
+					`Ready; loaded ${this.stations.size} stations`
 				);
 				res();
 			});
@@ -92,7 +92,7 @@ class StationManager extends ResourceManager {
 				v.tracks = tracks;
 				await this.create(v);
 			} catch {
-				console.warn(`Malformed station data @ ${r[0]}`);
+				this.logger.warn(`Malformed station data @ ${r[0]}`);
 			}
 		}
 
