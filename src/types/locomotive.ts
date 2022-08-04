@@ -33,6 +33,10 @@ class Locomotive extends Movable {
 		this.propertyChange(`controller`, ctl, true);
 	}
 
+	public get currentTrain() {
+		return this.realm.trainManager.trains.find(t => t.locomotive === this);
+	}
+
 	metadata(): LocomotiveOptions {
 		return {
 			couplerType: this.couplerType,

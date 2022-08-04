@@ -1,4 +1,5 @@
 import Movable, { MovableOptions } from "./movable";
+import Train from "./train";
 import User from "./user";
 
 type WagonType = "PASSENGER" | "CARGO";
@@ -26,6 +27,12 @@ class Wagon extends Movable {
 		super("WAGON", options);
 
 		this._wagonType = options.wagonType;
+	}
+
+	public get currentTrain(): Train {
+		return this.realm.trainManager.trains.find((t) =>
+			Boolean(t.trainSets.find((s) => s.components.includes(this)))
+		);
 	}
 
 	metadata(): WagonOptions {

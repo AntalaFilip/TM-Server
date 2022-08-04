@@ -2,6 +2,7 @@ import Realm from "./realm";
 import Resource, { ResourceOptions } from "./resource";
 import Station from "./station";
 import StationTrack from "./track";
+import Train from "./train";
 import User from "./user";
 
 type MovableLocation = {
@@ -133,6 +134,8 @@ abstract class Movable extends Resource {
 	public get owner() {
 		return this.realm.client.userManager.get(this.ownerId);
 	}
+
+	abstract currentTrain: Train;
 
 	constructor(type: MovableType, options: MovableOptions) {
 		super(type, options);

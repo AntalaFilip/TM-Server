@@ -193,6 +193,7 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocation
+		currentTrain: Train
 	}
 	type MovableLocation {
 		station: Station!
@@ -217,6 +218,7 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocation
+		currentTrain: Train
 		controller: User
 	}
 	input LocomotiveInput {
@@ -240,6 +242,7 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocation
+		currentTrain: Train
 	}
 	input WagonInput {
 		model: String!
