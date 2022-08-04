@@ -27,15 +27,19 @@ interface TrainOptionsMetadata extends ResourceOptions {
 	currentEntryId?: string;
 }
 
-type TrainState = "MISSING" | "MOVING" | "ARRIVED" | "READY" | "LEAVING";
+const TrainStates = {
+	MISSING: 1 << 1,
+	MOVING: 1 << 2,
+	ARRIVED: 1 << 3,
+	READY: 1 << 4,
+	LEAVING: 1 << 5,
+};
+type TrainState = keyof typeof TrainStates;
 
 function checkTrainStateValidity(toCheck: unknown): toCheck is TrainState {
 	return (
-		toCheck === "MISSING" ||
-		toCheck === "MOVING" ||
-		toCheck === "ARRIVED" ||
-		toCheck === "READY" ||
-		toCheck === "LEAVING"
+		typeof toCheck === "string" &&
+		Object.keys(TrainStates).includes(toCheck)
 	);
 }
 
