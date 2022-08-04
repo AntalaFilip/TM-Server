@@ -393,6 +393,7 @@ export default Train;
 export {
 	TrainOptions,
 	TrainState,
+	TrainStates,
 	TrainOptionsMetadata,
 	checkTrainStateValidity,
 };
