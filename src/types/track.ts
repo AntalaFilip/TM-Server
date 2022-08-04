@@ -35,7 +35,9 @@ class StationTrack extends Resource {
 	}
 
 	public get currentTrain(): Train {
-		return null;
+		return this.realm.trainManager.trains.find(
+			(t) => t.location.track === this
+		);
 	}
 
 	private _usedForParking: boolean;
