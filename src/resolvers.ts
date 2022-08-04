@@ -750,8 +750,9 @@ function createGQLResolvers(client: Client) {
 					a.input.permissions.realm = realmPermissions;
 				}
 
+				const passwordHash = a.input.password ? User.hashPassword(a.input.password) : undefined;
 				return await client.userManager.create(
-					{ ...a.input, managerId: client.userManager.id },
+					{ ...a.input, managerId: client.userManager.id, passwordHash },
 					c.user
 				);
 			},
