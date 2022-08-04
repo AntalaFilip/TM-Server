@@ -232,6 +232,10 @@ class TimeManager extends BaseManager {
 			this.running = data.running;
 			modified = true;
 		}
+		if (typeof data.restricted === "boolean") {
+			this.restricted = data.restricted;
+			modified = true;
+		}
 
 		if (!modified) return false;
 

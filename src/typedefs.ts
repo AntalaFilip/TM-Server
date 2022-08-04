@@ -361,11 +361,13 @@ const typeDefs = gql`
 		trueElapsed: Long!
 		elapsed: Long!
 		running: Boolean!
+		restricted: Boolean!
 	}
 	input RealmTimeInput {
 		startPoint: Long
 		speedModifier: Int
 		running: Boolean
+		restricted: Boolean
 	}
 `;
 
