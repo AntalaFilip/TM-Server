@@ -15,6 +15,7 @@ import TrainSet from "./types/trainset";
 import User, { UserPermissions } from "./types/user";
 import Wagon from "./types/wagon";
 import LongScalar from "graphql-type-long";
+import Station from "./types/station";
 
 type GQLContext = {
 	user?: User;
@@ -29,6 +30,9 @@ function createGQLResolvers(client: Client) {
 				parent.realm.trainManager.trains.filter((t) =>
 					t.trainSets.includes(parent)
 				),
+		},
+		Station: {
+			tracks: (parent: Station) => Array.from(parent.tracks.values()),
 		},
 		Query: {
 			stations: async (_p: never, a: { realm: string }) => {
@@ -218,6 +222,7 @@ function createGQLResolvers(client: Client) {
 						...a.input,
 						realmId: realm.id,
 						managerId: realm.stationManager.id,
+						stationId: realm.stationManager.key(station.id),
 					},
 					c.user
 				);

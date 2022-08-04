@@ -79,7 +79,9 @@ class StationManager extends ResourceManager {
 			try {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as StationOptions;
-				const trackData = await this.db.redis.hgetall(`${k}:tracks`);
+				const trackData = await this.db.redis.hgetall(
+					`${this.key(k)}:tracks`
+				);
 				const tracks = Object.entries(trackData)
 					.map(([_k, v]) => JSON.parse(v) as StationTrackOptions)
 					.map((meta) => new StationTrack(meta));
