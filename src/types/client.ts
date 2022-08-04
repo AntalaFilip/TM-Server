@@ -43,7 +43,7 @@ class Client implements ResourceData {
 			this.userManager.ready.then(() => {
 				this.createAllFromStore().then(() => {
 					const httpRouter = createIndexRouter(this);
-					this.express.use(httpRouter);
+					this.express.use('/api', httpRouter);
 
 					this.logger.info(
 						`Client ready; ${this.realms.size} Realms active`

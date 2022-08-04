@@ -11,6 +11,7 @@ function createSIOServer(http: HTTPServer): SIOServer {
 			origin: ["https://admin.socket.io"],
 			credentials: true,
 		},
+		path: `/api/socket.io`
 	});
 	instrument(io, {
 		auth: {
