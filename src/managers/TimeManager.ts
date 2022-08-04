@@ -199,6 +199,7 @@ class TimeManager extends BaseManager {
 
 		// TODO: auditing
 
+		// TODO: startpoint changes are potentially destructive
 		if (typeof data.startPoint === "number") {
 			this.startPoint = data.startPoint;
 			modified = true;
