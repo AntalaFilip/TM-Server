@@ -211,6 +211,8 @@ class TimetableEntry extends Resource {
 			usedTill: this.usedTill,
 			setIds: this.sets.map((s) => s.id),
 			adsCount: this.adsCount,
+			delayedAds: Array.from(this.delayedAds.entries()),
+			cancelledAds: this.cancelledAds,
 		};
 	}
 
