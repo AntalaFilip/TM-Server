@@ -4,6 +4,7 @@ config();
 
 const redis = new RedisClient(process.env.REDIS_URL, {
 	password: process.env.REDIS_PASS,
+	username: `tmgr`,
 	keyPrefix: process.env.REDIS_PREFIX,
 });
 
