@@ -90,8 +90,8 @@ function createGQLResolvers(client: Client) {
 			timetable: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.timetableManager.get(a.id);
 			},
-			users: async () => {
-				return Array.from(client.userManager.users.values());
+			users: async (_p: never, a: { disabled?: boolean }) => {
+				return Array.from(client.userManager.users.values()).filter(u => !u.disabled || a.disabled);
 			},
 			user: async (_p: never, a: { id: string }) => {
 				return client.userManager.get(a.id);

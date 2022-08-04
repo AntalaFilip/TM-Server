@@ -23,7 +23,7 @@ const typeDefs = gql`
 		timetables(realm: ID!): [Timetable]
 		timetable(realm: ID!, id: ID!): Timetable
 
-		users: [User]!
+		users(disabled: Boolean): [User]!
 		user(id: ID!): User
 
 		realms: [Realm]!
@@ -90,8 +90,8 @@ const typeDefs = gql`
 			input: TimetableEntryInput!
 		): TimetableEntry!
 
-		addUser(realm: ID!, input: UserInput!): User!
-		modUser(realm: ID!, user: ID!, input: UserInput!): User!
+		addUser(input: UserInput!): User!
+		modUser(user: ID!, input: UserModInput!): User!
 
 		addRealm(input: RealmInput!): Realm!
 		modRealm(realm: ID!, input: RealmInput!): Realm!
@@ -311,6 +311,13 @@ const typeDefs = gql`
 		name: String!
 		username: String!
 		password: String!
+		admin: Boolean
+		permissions: UserPermissionsInput
+	}
+	input UserModInput {
+		name: String
+		username: String
+		password: String
 		admin: Boolean
 		permissions: UserPermissionsInput
 	}
