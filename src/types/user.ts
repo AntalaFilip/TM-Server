@@ -30,19 +30,9 @@ interface UserPermissionsMetadata {
 	realm: [string, number][];
 }
 
-type Permission =
-	| "manage realm"
-	| "manage users"
-	| "manage stations"
-	| "manage movables"
-	| "manage time"
-	| "control time"
-	| "assign users"
-	| "manage trains"
-	| "manage timetables"
-	| "assign self";
+type Permission = keyof typeof PermissionMap;
 
-const PermissionMap: Record<Permission, number> = {
+const PermissionMap = {
 	"manage realm": 1 << 0,
 	"manage users": 1 << 1,
 	"manage stations": 1 << 2,
