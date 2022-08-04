@@ -2,14 +2,20 @@ import Movable, { MovableOptions } from "./movable";
 import Train from "./train";
 import User from "./user";
 
-type WagonType = "PASSENGER" | "CARGO";
+type WagonType = keyof typeof WagonTypes;
+const WagonTypes = {
+	PASSENGER: 1 << 1,
+	CARGO: 1 << 2,
+};
 
 interface WagonOptions extends MovableOptions {
 	wagonType: WagonType;
 }
 
 function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
-	return toCheck === "PASSENGER" || toCheck === "CARGO";
+	return (
+		typeof toCheck === "string" && Object.keys(WagonTypes).includes(toCheck)
+	);
 }
 
 class Wagon extends Movable {
@@ -98,4 +104,4 @@ class Wagon extends Movable {
 }
 
 export default Wagon;
-export { WagonOptions, WagonType, checkWagonTypeValidity };
+export { WagonOptions, WagonType, checkWagonTypeValidity, WagonTypes };
