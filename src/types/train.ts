@@ -2,6 +2,7 @@ import { ForbiddenError } from "apollo-server-core";
 import Locomotive from "./locomotive";
 import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
+import TMError from "./tmerror";
 import StationTrack from "./track";
 import TrainSet from "./trainset";
 import User from "./user";
@@ -189,7 +190,10 @@ class Train extends Resource {
 		...extra: string[]
 	) {
 		if (!this.realm.activeTimetable)
-			throw new Error(`There is no active timetable!`);
+			throw new TMError(
+				`ENOACTIVETIMETABLE`,
+				`There is no active timetable!`
+			);
 		if (
 			actor &&
 			!actor.hasPermission("manage trains", this.realm) &&
@@ -282,12 +286,27 @@ class Train extends Resource {
 
 	public runStateChecks(override = false) {
 		if (!this.realm.activeTimetable)
-			throw new Error(`There is no active timetable!`);
-		// TODO: create nice errors
+			throw new TMError(
+				`ETRCHKNOACTIVETIMETABLE`,
+				`There is no active timetable!`,
+				{ train: this.id }
+			);
 		if (this.trainSets != this.currentEntry?.sets && !override)
-			throw new Error(`Train sets do not match!`);
+			throw new TMError(`ETRCHKSETSNOMATCH`, `Train sets do not match!`, {
+				train: this.id,
+				expectedSets: this.currentEntry.sets.map((s) => s.id),
+				currentSets: this.trainSets.map((s) => s.id),
+			});
 		if (this.locomotive != this.currentEntry?.locomotive && !override)
-			throw new Error(`Locomotives don't match!`);
+			throw new TMError(
+				`ETRCHKLOCONOMATCH`,
+				`Locomotives do not match!`,
+				{
+					train: this.id,
+					expectedLocomotive: this.currentEntry.locomotive.id,
+					currentLocomotive: this.locomotive.id,
+				}
+			);
 
 		return true;
 	}
@@ -296,7 +315,8 @@ class Train extends Resource {
 		try {
 			return this.runStateChecks();
 		} catch (err) {
-			return false;
+			if (err instanceof TMError) return false;
+			else throw err;
 		}
 	}
 
