@@ -10,6 +10,7 @@ interface TimeOptions {
 	trueElapsed?: number;
 	elapsed?: number;
 	running?: boolean;
+	restricted: boolean;
 }
 
 /**
@@ -30,6 +31,16 @@ class TimeManager extends BaseManager {
 	public readonly realm: Realm;
 	public readonly ready: Promise<void>;
 	public override readonly logger: TMLogger;
+
+	private _restricted: boolean;
+	public get restricted() {
+		return this._restricted;
+	}
+	private set restricted(state: boolean) {
+		this.save(false, true);
+		this._restricted = state;
+		this.save();
+	}
 
 	private _running = false;
 	/** Whether the time is currently running */
@@ -130,11 +141,12 @@ class TimeManager extends BaseManager {
 					}
 				}
 
+				this._restricted = options.restricted ?? false;
 				this._startPoint = options?.startPoint ?? 0;
-				// max allowed speed is 1000x
+				// max allowed speed is 100x
 				this._speedModifier =
-					(options?.speedModifier > 1000
-						? 1000
+					(options?.speedModifier > 100
+						? 100
 						: options?.speedModifier) ?? 1;
 				this._elapsed = options?.elapsed ?? Date.now();
 				this._trueElapsed = options?.trueElapsed ?? 0;
@@ -172,6 +184,7 @@ class TimeManager extends BaseManager {
 			trueElapsed: this.trueMs,
 			elapsed: this.elapsed,
 			running: this.running,
+			restricted: this.restricted,
 		};
 	}
 
@@ -183,6 +196,13 @@ class TimeManager extends BaseManager {
 			throw new ForbiddenError(`No permission`, {
 				tmCode: `ENOPERM`,
 				permission: `control time`,
+			});
+
+		if (this.restricted && !actor.hasPermission("manage time", this.realm))
+			throw new ForbiddenError(`No permission`, {
+				tmCode: `ENOPERM`,
+				permission: `manage time`,
+				extension: `restricted`,
 			});
 
 		// TODO: auditing
