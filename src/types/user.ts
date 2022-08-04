@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
 import Realm from "./realm";
+import Locomotive from "./locomotive";
 
 interface UserOptions extends UserPublicData {
 	passwordHash?: string;
@@ -58,6 +59,9 @@ interface UserSettings {
 
 class User extends Resource {
 	public readonly realmId: null;
+	public override get realm(): null {
+		return null;
+	}
 
 	private _name: string;
 	public get name() {
@@ -105,6 +109,25 @@ class User extends Resource {
 	private set admin(state: boolean) {
 		this._admin = state;
 		this.save();
+	}
+
+	public get controlling() {
+		return Array.from(this.userManager.client.realms.values())
+			.flatMap(
+				(r) =>
+					Array.from(
+						r.movableManager.movables
+							.filter((v) => v instanceof Locomotive)
+							.values()
+					) as Locomotive[]
+			)
+			.filter((m) => m.controller === this);
+	}
+
+	public get owning() {
+		return Array.from(this.userManager.client.realms.values()).filter(
+			(r) => r.owner === this
+		);
 	}
 
 	private readonly permissions: UserPermissions;

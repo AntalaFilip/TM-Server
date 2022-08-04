@@ -306,6 +306,8 @@ const typeDefs = gql`
 		disabled: Boolean!
 		admin: Boolean!
 		permissions: UserPermissions!
+		controlling: [Locomotive]!
+		owning: [Realm]!
 	}
 	input UserInput {
 		name: String!
