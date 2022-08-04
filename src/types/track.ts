@@ -106,10 +106,10 @@ class StationTrack extends Resource {
 	}
 
 	async save(): Promise<boolean> {
-		await this.manager.db.redis.hset(
-			`${this.stationId}:tracks`,
-			JSON.stringify(this.metadata())
-		);
+		await this.manager.db.redis.hset(`${this.stationId}:tracks`, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
 		return true;
 	}
 }
