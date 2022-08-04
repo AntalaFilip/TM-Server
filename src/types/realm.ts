@@ -87,9 +87,9 @@ class Realm extends Resource {
 
 		this.stationManager = new StationManager(this);
 		this.timeManager = new TimeManager(this);
+		this.movableManager = new MovableManager(this);
 		this.trainSetManager = new TrainSetManager(this);
 		this.trainManager = new TrainManager(this);
-		this.movableManager = new MovableManager(this);
 		this.timetableManager = new TimetableManager(this);
 
 		// eslint-disable-next-line no-async-promise-executor

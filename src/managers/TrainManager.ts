@@ -1,6 +1,8 @@
 import Collection from "@discordjs/collection";
 import Realm from "../types/realm";
-import Train, { TrainOptions } from "../types/train";
+import TMError from "../types/tmerror";
+import Train, { TrainOptions, TrainOptionsMetadata } from "../types/train";
+import TrainSet from "../types/trainset";
 import User from "../types/user";
 import ResourceManager from "./ResourceManager";
 
@@ -14,9 +16,7 @@ class TrainManager extends ResourceManager {
 		this.trains = new Collection();
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
-				this.logger.debug(
-					`Ready; loaded ${this.trains.size} trains`
-				);
+				this.logger.debug(`Ready; loaded ${this.trains.size} trains`);
 				res();
 			});
 		});
@@ -58,18 +58,46 @@ class TrainManager extends ResourceManager {
 	}
 
 	private async createAllFromStore() {
-		const prefix = process.env.REDIS_PREFIX;
-		const allTrainIds = (
-			await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)
-		).map((k) => k.slice(prefix.length));
-		if (!allTrainIds || allTrainIds.length === 0) return;
+		await this.realm.stationManager.ready;
+		await this.realm.movableManager.ready;
+		await this.realm.trainSetManager.ready;
 
-		const allTrains = await this.db.redis.mget(allTrainIds);
-		const arr = allTrainIds.map((v, i) => [v, allTrains[i]]);
+		const allTrains = await this.db.redis.hgetall(this.id);
+		const arr = Object.entries(allTrains);
 		for (const r of arr) {
 			try {
-				const v = JSON.parse(r[1]) as TrainOptions;
-				await this.create(v);
+				const v = JSON.parse(r[1]) as TrainOptionsMetadata;
+				const locStat = this.realm.stationManager.get(
+					v.location?.stationId
+				);
+				const location = v.location
+					? {
+							station: locStat,
+							track: v.location.trackId
+								? locStat.tracks.get(v.location.trackId)
+								: null,
+					  }
+					: null;
+
+				const locomotive = this.realm.movableManager.getLoco(
+					v.locomotiveId
+				);
+				const trainSets = v.trainSetIds
+					?.map((s) => this.realm.trainSetManager.get(s))
+					.filter((s) => s instanceof TrainSet);
+
+				if (trainSets?.length !== v.trainSetIds?.length)
+					throw new TMError(
+						`ETRBADTRAINSETID`,
+						`Invalid TrainSet ID passed!`,
+						{
+							got: v.trainSetIds,
+							found: trainSets?.map((t) => t.id),
+						}
+					);
+
+				const opt = { ...v, location, locomotive, trainSets };
+				await this.create(opt);
 			} catch {
 				this.logger.warn(`Malformed train data @ ${r[0]}`);
 			}

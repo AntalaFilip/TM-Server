@@ -383,7 +383,10 @@ class Train extends Resource {
 	}
 
 	async save(): Promise<boolean> {
-		await this.manager.db.add(this.id, this.metadata());
+		await this.manager.db.redis.hset(this.manager.id, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
 
 		return true;
 	}
