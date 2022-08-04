@@ -2,6 +2,7 @@ import { ForbiddenError } from "apollo-server-core";
 import Locomotive from "./locomotive";
 import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
+import StationTrack from "./track";
 import TrainSet from "./trainset";
 import User from "./user";
 
@@ -209,11 +210,16 @@ class Train extends Resource {
 				this.currentEntryId = this.nextEntry?.id;
 			}
 		} else if (newState === "ARRIVED") {
+			const track: StationTrack =
+				this.currentEntry.station.tracks.get(extra[0]) ??
+				this.currentEntry.track;
+
+			if (track.currentTrain && track.currentTrain != this)
+				throw new Error("Track is occupied!");
+
 			this.location = {
 				station: this.currentEntry.station,
-				track:
-					this.currentEntry.station.tracks.get(extra[0]) ??
-					this.currentEntry.track,
+				track,
 			};
 		} else if (newState === "READY") {
 			this.runStateChecks(override);
