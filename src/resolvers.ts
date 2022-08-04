@@ -14,7 +14,7 @@ import { TrainState } from "./types/train";
 import TrainSet from "./types/trainset";
 import User, { UserPermissions } from "./types/user";
 import Wagon from "./types/wagon";
-import LongScalar from 'graphql-type-long';
+import LongScalar from "graphql-type-long";
 
 type GQLContext = {
 	user?: User;
@@ -91,7 +91,9 @@ function createGQLResolvers(client: Client) {
 				return client.get(a.realm)?.timetableManager.get(a.id);
 			},
 			users: async (_p: never, a: { disabled?: boolean }) => {
-				return Array.from(client.userManager.users.values()).filter(u => !u.disabled || a.disabled);
+				return Array.from(client.userManager.users.values()).filter(
+					(u) => !u.disabled || a.disabled
+				);
 			},
 			user: async (_p: never, a: { id: string }) => {
 				return client.userManager.get(a.id);
@@ -750,9 +752,15 @@ function createGQLResolvers(client: Client) {
 					a.input.permissions.realm = realmPermissions;
 				}
 
-				const passwordHash = a.input.password ? User.hashPassword(a.input.password) : undefined;
+				const passwordHash = a.input.password
+					? User.hashPassword(a.input.password)
+					: undefined;
 				return await client.userManager.create(
-					{ ...a.input, managerId: client.userManager.id, passwordHash },
+					{
+						...a.input,
+						managerId: client.userManager.id,
+						passwordHash,
+					},
 					c.user
 				);
 			},
