@@ -14,6 +14,7 @@ import { TrainState } from "./types/train";
 import TrainSet from "./types/trainset";
 import User, { UserPermissions } from "./types/user";
 import Wagon from "./types/wagon";
+import LongScalar from 'graphql-type-long';
 
 type GQLContext = {
 	user?: User;
@@ -22,6 +23,7 @@ type GQLContext = {
 function createGQLResolvers(client: Client) {
 	const resolvers = {
 		Date: DateScalar,
+		Long: LongScalar,
 		TrainSet: {
 			trains: (parent: TrainSet) =>
 				parent.realm.trainManager.trains.filter((t) =>

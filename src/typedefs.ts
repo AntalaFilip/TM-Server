@@ -2,6 +2,7 @@ import { gql } from "apollo-server-express";
 
 const typeDefs = gql`
 	scalar Date
+	scalar Long
 
 	type Query {
 		stations(realm: ID!): [Station]
@@ -342,15 +343,15 @@ const typeDefs = gql`
 	}
 
 	type RealmTime {
-		startPoint: Int!
-		speedModifier: Int!
-		trueElapsed: Int!
-		elapsed: Int!
+		startPoint: Long!
+		speedModifier: Long!
+		trueElapsed: Long!
+		elapsed: Long!
 		running: Boolean!
 	}
 	input RealmTimeInput {
-		startPoint: Int!
-		speedModifier: Int!
+		startPoint: Long
+		speedModifier: Int
 		running: Boolean
 	}
 `;
