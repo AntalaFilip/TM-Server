@@ -39,7 +39,8 @@ type Permission =
 	| "control time"
 	| "assign users"
 	| "manage trains"
-	| "manage timetables";
+	| "manage timetables"
+	| "assign self";
 
 const PermissionMap: Record<Permission, number> = {
 	"manage realm": 1 << 0,
@@ -51,6 +52,7 @@ const PermissionMap: Record<Permission, number> = {
 	"assign users": 1 << 6,
 	"manage trains": 1 << 7,
 	"manage timetables": 1 << 8,
+	"assign self": 1 << 9,
 };
 
 interface UserSettings {

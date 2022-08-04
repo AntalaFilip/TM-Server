@@ -146,6 +146,16 @@ class Station extends Resource {
 
 		// TODO: auditing
 
+		if (
+			typeof data.dispatcherId === "string" &&
+			this.realm.client.userManager.get(data.dispatcherId)
+		) {
+			this.setDispatcher(
+				this.realm.client.userManager.get(data.dispatcherId),
+				actor
+			);
+			modified = true;
+		}
 		if (typeof data.name === "string") {
 			this.name = data.name;
 			modified = true;
@@ -158,17 +168,22 @@ class Station extends Resource {
 			this.stationType = data.stationType;
 			modified = true;
 		}
-		if (
-			typeof data.dispatcherId === "string" &&
-			this.realm.client.userManager.get(data.dispatcherId)
-		) {
-			this.dispatcher = this.realm.client.userManager.get(
-				data.dispatcherId
-			);
-			modified = true;
-		}
 
 		if (!modified) return false;
+
+		return true;
+	}
+
+	setDispatcher(disp: User, actor: User) {
+		const self = actor.hasPermission("assign self");
+		const others = actor.hasPermission("assign users");
+		if ((disp === actor && !self && !others) || !others)
+			throw new ForbiddenError(`No permission`, {
+				permission: "assign self XOR assign users",
+			});
+
+		if (disp === this.dispatcher) return;
+		this.dispatcher = disp;
 
 		return true;
 	}

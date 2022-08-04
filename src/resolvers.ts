@@ -158,6 +158,38 @@ function createGQLResolvers(client: Client) {
 				station.modify(a.input, c.user);
 				return station;
 			},
+			setStationDispatcher: async (
+				_p: never,
+				a: { realm: string; station: string; dispatcher: string },
+				c: GQLContext
+			) => {
+				if (!c.user)
+					throw new AuthenticationError(`Unauthenticated`, {
+						tmCode: `ENOAUTH`,
+					});
+
+				const realm = client.get(a.realm);
+				if (!realm)
+					throw new UserInputError(`Invalid Realm ID!`, {
+						tmCode: `EBADPARAM`,
+						extension: `REALM`,
+					});
+				const station = realm.stationManager.get(a.station);
+				if (!station)
+					throw new UserInputError(`Invalid Station ID!`, {
+						code: `EBADPARAM`,
+						extension: `STATION`,
+					});
+				const dispatcher = client.userManager.get(a.dispatcher);
+				if (!dispatcher)
+					throw new UserInputError(`Invalid User ID!`, {
+						code: `EBADPARAM`,
+						extension: `STATION`,
+					});
+
+				station.setDispatcher(dispatcher, c.user);
+				return station;
+			},
 			addStationTrack: async (
 				_p: never,
 				a: { realm: string; station: string; input: any },
