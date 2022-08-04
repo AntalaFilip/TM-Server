@@ -126,6 +126,7 @@ const typeDefs = gql`
 		id: ID!
 		realm: Realm!
 		name: String!
+		short: String!
 		usedForParking: Boolean!
 		length: Int
 		station: Station!
@@ -133,6 +134,7 @@ const typeDefs = gql`
 	}
 	input StationTrackInput {
 		name: String!
+		short: String!
 		usedForParking: Boolean!
 		length: Int
 	}

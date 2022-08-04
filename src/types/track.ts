@@ -5,6 +5,7 @@ import User from "./user";
 interface StationTrackOptions extends ResourceOptions {
 	stationId: string;
 	name: string;
+	short: string;
 	length?: number;
 	usedForParking: boolean;
 }
@@ -23,6 +24,15 @@ class StationTrack extends Resource {
 	private set name(name: string) {
 		this._name = name;
 		this.propertyChange(`name`, this.name);
+	}
+
+	private _short: string;
+	public get short() {
+		return this._short;
+	}
+	private set short(short: string) {
+		this._short = short;
+		this.propertyChange(`short`, this.short);
 	}
 
 	private _length?: number;
@@ -55,6 +65,8 @@ class StationTrack extends Resource {
 		this.stationId = options.stationId;
 		this._length = options.length;
 		this._usedForParking = options.usedForParking;
+		this._name = options.name;
+		this._short = options.short ?? options.name;
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
@@ -91,6 +103,7 @@ class StationTrack extends Resource {
 			usedForParking: this.usedForParking,
 			length: this.length,
 			name: this.name,
+			short: this.short,
 		};
 	}
 	publicMetadata() {
