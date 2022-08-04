@@ -316,7 +316,7 @@ const typeDefs = gql`
 	input UserInput {
 		name: String!
 		username: String!
-		password: String!
+		password: String
 		admin: Boolean
 		permissions: UserPermissionsInput
 	}
