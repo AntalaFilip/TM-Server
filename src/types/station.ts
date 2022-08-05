@@ -174,10 +174,15 @@ class Station extends Resource {
 		return true;
 	}
 
-	setDispatcher(disp: User, actor: User) {
+	setDispatcher(disp: User | null, actor: User) {
 		const self = actor.hasPermission("assign self");
 		const others = actor.hasPermission("assign users");
-		if ((disp === actor && !self && !others) || !others)
+		if (
+			((disp === actor || (disp == null && this.dispatcher === actor)) &&
+				!self &&
+				!others) ||
+			!others
+		)
 			throw new ForbiddenError(`No permission`, {
 				permission: "assign self XOR assign users",
 			});

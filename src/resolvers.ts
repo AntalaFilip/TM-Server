@@ -185,7 +185,7 @@ function createGQLResolvers(client: Client) {
 						extension: `STATION`,
 					});
 				const dispatcher = client.userManager.get(a.dispatcher);
-				if (!dispatcher)
+				if (!dispatcher && a.dispatcher)
 					throw new UserInputError(`Invalid User ID!`, {
 						code: `EBADPARAM`,
 						extension: `STATION`,

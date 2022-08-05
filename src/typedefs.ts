@@ -35,7 +35,7 @@ const typeDefs = gql`
 	type Mutation {
 		addStation(realm: ID!, input: StationInput!): Station!
 		modStation(realm: ID!, station: ID!, input: StationInput!): Station!
-		setStationDispatcher(realm: ID!, station: ID!, dispatcher: ID!): Station!
+		setStationDispatcher(realm: ID!, station: ID!, dispatcher: ID): Station!
 
 		addStationTrack(
 			realm: ID!
