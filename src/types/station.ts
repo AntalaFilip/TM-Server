@@ -201,9 +201,11 @@ class Station extends Resource {
 
 		// Add the track metadata
 		if (this.tracks.size > 0)
-			await this.manager.db.redis.hset(
+			await this.manager.db.redis.hmset(
 				this.manager.key(`${this.id}:tracks`),
-				this.tracks.map((tr) => [tr.id, JSON.stringify(tr.metadata())])
+				this.tracks
+					.map((tr) => [tr.id, JSON.stringify(tr.metadata())])
+					.flat()
 			);
 
 		return true;
