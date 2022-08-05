@@ -211,9 +211,9 @@ abstract class Movable extends Resource {
 		return true;
 	}
 
-	abstract metadata(): MovableOptions;
+	abstract override metadata(): MovableOptions;
 
-	async save(): Promise<boolean> {
+	override async save(): Promise<boolean> {
 		await this.manager.db.redis.hset(this.managerId, [
 			this.id,
 			JSON.stringify(this.metadata()),
