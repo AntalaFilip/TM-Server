@@ -18,6 +18,9 @@ interface UserPublicData extends ResourceOptions {
 	disabled?: boolean;
 	admin?: boolean;
 	permissions?: UserPermissionsMetadata;
+	dispatching?: { realm: string; station: string };
+	controlling?: { realm: string; locomotive: string }[];
+	owning?: string[];
 }
 
 interface UserPermissions {
@@ -122,6 +125,12 @@ class User extends Resource {
 		);
 	}
 
+	public get dispatching() {
+		return this.userManager.client.realms
+			.flatMap((r) => r.stationManager.stations)
+			.find((s) => s.dispatcher === this);
+	}
+
 	private readonly permissions: UserPermissions;
 
 	public readonly settings: UserSettings;
@@ -216,6 +225,17 @@ class User extends Resource {
 			permissions: this.permissionMeta(),
 			managerId: this.managerId,
 			realmId: this.realmId,
+			dispatching: this.dispatching
+				? {
+						realm: this.dispatching.realmId,
+						station: this.dispatching.id,
+				  }
+				: null,
+			controlling: this.controlling.map((c) => ({
+				realm: c.realmId,
+				locomotive: c.id,
+			})),
+			owning: this.owning.map((r) => r.id),
 		};
 	}
 	fullMetadata() {
