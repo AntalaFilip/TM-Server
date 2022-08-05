@@ -87,8 +87,9 @@ class StationManager extends ResourceManager {
 					.map((meta) => new StationTrack(meta));
 				v.tracks = tracks;
 				await this.create(v);
-			} catch {
+			} catch (err) {
 				this.logger.warn(`Malformed station data @ ${r[0]}`);
+				if (err instanceof Error) this.logger.verbose(err.message);
 			}
 		}
 
