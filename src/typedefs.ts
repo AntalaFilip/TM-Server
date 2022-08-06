@@ -177,6 +177,7 @@ const typeDefs = gql`
 
 	type TrainSet {
 		id: ID!
+		realm: Realm!
 		name: String!
 		components: [Movable]!
 		trains: [Train]!
@@ -197,6 +198,7 @@ const typeDefs = gql`
 		maxSpeed: Int
 		currentLocation: MovableLocation
 		currentTrain: Train
+		owner: User
 	}
 	type MovableLocation {
 		station: Station!
@@ -223,6 +225,7 @@ const typeDefs = gql`
 		currentLocation: MovableLocation
 		currentTrain: Train
 		controller: User
+		owner: User
 	}
 	input LocomotiveInput {
 		model: String!
@@ -246,6 +249,7 @@ const typeDefs = gql`
 		maxSpeed: Int
 		currentLocation: MovableLocation
 		currentTrain: Train
+		owner: User
 	}
 	input WagonInput {
 		model: String!
