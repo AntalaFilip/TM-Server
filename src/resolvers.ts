@@ -6,7 +6,7 @@ import {
 } from "apollo-server-core";
 import DateScalar from "./graphql/dateScalar";
 import Client from "./types/client";
-import TimetableEntry from "./types/entry";
+import TimetableEntry, { ArrDepSet } from "./types/entry";
 import Locomotive from "./types/locomotive";
 import Movable from "./types/movable";
 import Realm from "./types/realm";
@@ -34,6 +34,28 @@ function createGQLResolvers(client: Client) {
 				parent.realm.trainManager.trains.filter((t) =>
 					t.trainSets.includes(parent)
 				),
+		},
+		TimetableEntry: {
+			cancelledAds: (parent: TimetableEntry) =>
+				parent.cancelledAds.map(
+					(a) =>
+						new ArrDepSet({
+							no: a,
+							entryId: parent.id,
+							timetableId: parent.timetable.id,
+							managerId: parent.manager.id,
+						})
+				),
+			delayedAds: (parent: TimetableEntry) =>
+				parent.delayedAds.map((d, no) => ({
+					delay: d,
+					ads: new ArrDepSet({
+						no,
+						entryId: parent.id,
+						timetableId: parent.timetable.id,
+						managerId: parent.manager.id,
+					}),
+				})),
 		},
 		Station: {
 			tracks: (parent: Station) => Array.from(parent.tracks.values()),

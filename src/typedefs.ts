@@ -279,6 +279,11 @@ const typeDefs = gql`
 		genCount: Int!
 	}
 
+	type ArrDepSetDelay {
+		ads: ArrDepSet!
+		delay: Int!
+	}
+
 	type TimetableEntry {
 		id: ID!
 		realm: Realm!
@@ -295,6 +300,8 @@ const typeDefs = gql`
 		sets: [TrainSet]!
 		times: [ArrDepSet]!
 		adsCount: Int!
+		cancelledAds: [ArrDepSet]!
+		delayedAds: [ArrDepSetDelay]!
 	}
 	input TimetableEntryInput {
 		train: ID!
