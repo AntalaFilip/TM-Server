@@ -170,7 +170,7 @@ const typeDefs = gql`
 	}
 	type ArrDepSet {
 		arrival: Date!
-		departure: Date!
+		departure: Date
 		no: Int!
 		delay: Int!
 	}

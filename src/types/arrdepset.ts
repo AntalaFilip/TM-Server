@@ -28,6 +28,7 @@ class ArrDepSet {
 		);
 	}
 	public get departure() {
+		if (this.entry.duration < 0) return null;
 		return new Date(this.arrival.getTime() + this.entry.duration);
 	}
 	public readonly no: number;
