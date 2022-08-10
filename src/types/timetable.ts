@@ -119,10 +119,10 @@ class Timetable extends Resource {
 	}
 
 	async save(): Promise<boolean> {
-		await this.manager.db.add(
+		await this.manager.db.redis.hset(this.manager.id, [
 			`${this.id}:metadata`,
-			JSON.stringify(this.metadata())
-		);
+			JSON.stringify(this.metadata()),
+		]);
 
 		for (const entry of this.entries) {
 			await entry.save();

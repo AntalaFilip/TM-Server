@@ -5,6 +5,7 @@ import User from "./user";
 interface StationTrackOptions extends ResourceOptions {
 	stationId: string;
 	name: string;
+	short: string;
 	length?: number;
 	usedForParking: boolean;
 }
@@ -25,17 +26,28 @@ class StationTrack extends Resource {
 		this.propertyChange(`name`, this.name);
 	}
 
+	private _short: string;
+	public get short() {
+		return this._short;
+	}
+	private set short(short: string) {
+		this._short = short;
+		this.propertyChange(`short`, this.short);
+	}
+
 	private _length?: number;
 	public get length() {
 		return this._length;
 	}
-	private set length(length: number) {
+	private set length(length: number | undefined) {
 		this._length = length;
 		this.propertyChange("length", this.length);
 	}
 
-	public get currentTrain(): Train {
-		return null;
+	public get currentTrain(): Train | undefined {
+		return this.realm.trainManager.trains.find(
+			(t) => t.location?.track === this
+		);
 	}
 
 	private _usedForParking: boolean;
@@ -53,6 +65,8 @@ class StationTrack extends Resource {
 		this.stationId = options.stationId;
 		this._length = options.length;
 		this._usedForParking = options.usedForParking;
+		this._name = options.name;
+		this._short = options.short ?? options.name;
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
@@ -89,6 +103,7 @@ class StationTrack extends Resource {
 			usedForParking: this.usedForParking,
 			length: this.length,
 			name: this.name,
+			short: this.short,
 		};
 	}
 	publicMetadata() {
@@ -104,10 +119,10 @@ class StationTrack extends Resource {
 	}
 
 	async save(): Promise<boolean> {
-		await this.manager.db.redis.hset(
-			`${this.stationId}:tracks`,
-			JSON.stringify(this.metadata())
-		);
+		await this.manager.db.redis.hset(`${this.stationId}:tracks`, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
 		return true;
 	}
 }

@@ -2,6 +2,7 @@ import { gql } from "apollo-server-express";
 
 const typeDefs = gql`
 	scalar Date
+	scalar Long
 
 	type Query {
 		stations(realm: ID!): [Station]
@@ -22,7 +23,7 @@ const typeDefs = gql`
 		timetables(realm: ID!): [Timetable]
 		timetable(realm: ID!, id: ID!): Timetable
 
-		users: [User]!
+		users(disabled: Boolean): [User]!
 		user(id: ID!): User
 
 		realms: [Realm]!
@@ -34,6 +35,7 @@ const typeDefs = gql`
 	type Mutation {
 		addStation(realm: ID!, input: StationInput!): Station!
 		modStation(realm: ID!, station: ID!, input: StationInput!): Station!
+		setStationDispatcher(realm: ID!, station: ID!, dispatcher: ID): Station!
 
 		addStationTrack(
 			realm: ID!
@@ -89,8 +91,8 @@ const typeDefs = gql`
 			input: TimetableEntryInput!
 		): TimetableEntry!
 
-		addUser(realm: ID!, input: UserInput!): User!
-		modUser(realm: ID!, user: ID!, input: UserInput!): User!
+		addUser(input: UserInput!): User!
+		modUser(user: ID!, input: UserModInput!): User!
 
 		addRealm(input: RealmInput!): Realm!
 		modRealm(realm: ID!, input: RealmInput!): Realm!
@@ -124,6 +126,7 @@ const typeDefs = gql`
 		id: ID!
 		realm: Realm!
 		name: String!
+		short: String!
 		usedForParking: Boolean!
 		length: Int
 		station: Station!
@@ -131,6 +134,7 @@ const typeDefs = gql`
 	}
 	input StationTrackInput {
 		name: String!
+		short: String!
 		usedForParking: Boolean!
 		length: Int
 	}
@@ -166,13 +170,14 @@ const typeDefs = gql`
 	}
 	type ArrDepSet {
 		arrival: Date!
-		departure: Date!
+		departure: Date
 		no: Int!
 		delay: Int!
 	}
 
 	type TrainSet {
 		id: ID!
+		realm: Realm!
 		name: String!
 		components: [Movable]!
 		trains: [Train]!
@@ -192,6 +197,8 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocation
+		currentTrain: Train
+		owner: User
 	}
 	type MovableLocation {
 		station: Station!
@@ -216,7 +223,9 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocation
+		currentTrain: Train
 		controller: User
+		owner: User
 	}
 	input LocomotiveInput {
 		model: String!
@@ -239,6 +248,8 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocation
+		currentTrain: Train
+		owner: User
 	}
 	input WagonInput {
 		model: String!
@@ -268,6 +279,11 @@ const typeDefs = gql`
 		genCount: Int!
 	}
 
+	type ArrDepSetDelay {
+		ads: ArrDepSet!
+		delay: Int!
+	}
+
 	type TimetableEntry {
 		id: ID!
 		realm: Realm!
@@ -284,6 +300,8 @@ const typeDefs = gql`
 		sets: [TrainSet]!
 		times: [ArrDepSet]!
 		adsCount: Int!
+		cancelledAds: [ArrDepSet]!
+		delayedAds: [ArrDepSetDelay]!
 	}
 	input TimetableEntryInput {
 		train: ID!
@@ -305,11 +323,20 @@ const typeDefs = gql`
 		disabled: Boolean!
 		admin: Boolean!
 		permissions: UserPermissions!
+		controlling: [Locomotive]!
+		owning: [Realm]!
 	}
 	input UserInput {
 		name: String!
 		username: String!
-		password: String!
+		password: String
+		admin: Boolean
+		permissions: UserPermissionsInput
+	}
+	input UserModInput {
+		name: String
+		username: String
+		password: String
 		admin: Boolean
 		permissions: UserPermissionsInput
 	}
@@ -342,16 +369,18 @@ const typeDefs = gql`
 	}
 
 	type RealmTime {
-		startPoint: Int!
-		speedModifier: Int!
-		trueElapsed: Int!
-		elapsed: Int!
+		startPoint: Long!
+		speedModifier: Long!
+		trueElapsed: Long!
+		elapsed: Long!
 		running: Boolean!
+		restricted: Boolean!
 	}
 	input RealmTimeInput {
-		startPoint: Int!
-		speedModifier: Int!
+		startPoint: Long
+		speedModifier: Int
 		running: Boolean
+		restricted: Boolean
 	}
 `;
 

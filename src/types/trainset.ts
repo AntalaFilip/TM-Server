@@ -96,4 +96,4 @@ class TrainSet extends Resource {
 }
 
 export default TrainSet;
-export { TrainSetOptions };
+export { TrainSetOptions, TrainSetOptionsMetadata };

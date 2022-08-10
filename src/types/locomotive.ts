@@ -13,24 +13,30 @@ class Locomotive extends Movable {
 		this._controller = options.controller;
 	}
 
-	private _controller: User;
+	private _controller?: User;
 	public get controller() {
 		return this._controller;
 	}
-	private set controller(ctl: User) {
+	private set controller(ctl: User | undefined) {
 		this._controller = ctl;
 		const trueTimestamp = this.manager.realm.timeManager.trueMs;
 		this.manager.db.redis.xadd(
 			this.manager.key(`${this.id}:controllers`),
 			"*",
 			"id",
-			ctl?.id,
+			ctl?.id ?? "",
 			"type",
-			ctl?.type,
+			ctl?.type ?? "",
 			"time",
 			trueTimestamp
 		);
 		this.propertyChange(`controller`, ctl, true);
+	}
+
+	public get currentTrain() {
+		return this.realm.trainManager.trains.find(
+			(t) => t.locomotive === this
+		);
 	}
 
 	metadata(): LocomotiveOptions {

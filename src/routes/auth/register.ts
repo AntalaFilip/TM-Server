@@ -5,36 +5,31 @@ import User from "../../types/user";
 
 async function register(client: Client, req: TMAuthRequest, res: Response) {
 	const authUser = req.auth;
+	if (!authUser) return res.status(500).send();
 	if (!authUser.hasPermission("manage users") && !authUser.admin)
-		return res
-			.status(403)
-			.send({
-				message: "Insufficient permissions!",
-				error: { code: "ENOPERM", permission: "manage users" },
-			});
+		return res.status(403).send({
+			message: "Insufficient permissions!",
+			error: { code: "ENOPERM", permission: "manage users" },
+		});
 
 	const data = req.body;
 	if (!data) return res.status(400).send("Missing body!");
 
 	const { username, password, name } = data;
 	if (!username || !password || !name)
-		return res
-			.status(400)
-			.send({
-				message: `Missing data!`,
-				error: { code: "EMISSINGDATA" },
-			});
+		return res.status(400).send({
+			message: `Missing data!`,
+			error: { code: "EMISSINGDATA" },
+		});
 	if (
 		typeof username != "string" ||
 		typeof password != "string" ||
 		typeof name != "string"
 	)
-		return res
-			.status(400)
-			.send({
-				message: `Invalid data!`,
-				error: { code: `EINVALIDDATA` },
-			});
+		return res.status(400).send({
+			message: `Invalid data!`,
+			error: { code: `EINVALIDDATA` },
+		});
 
 	// if (settings && typeof settings != 'object') return res.status(400).send({ message: `Invalid settings object!`, error: { code: `EINVALIDDATA` } });
 
@@ -43,12 +38,10 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 	);
 
 	if (duplicate)
-		return res
-			.status(400)
-			.send({
-				message: `A user with this username already exists`,
-				error: { code: "EUSERNAMEINUSE" },
-			});
+		return res.status(400).send({
+			message: `A user with this username already exists`,
+			error: { code: "EUSERNAMEINUSE" },
+		});
 
 	const created = await client.userManager.create({
 		name,
@@ -61,7 +54,6 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 
 	const toReturn = created.metadata();
 	delete toReturn.passwordHash;
-	delete toReturn.managerId;
 
 	return res.status(201).send(toReturn);
 }

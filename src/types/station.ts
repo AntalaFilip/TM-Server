@@ -46,20 +46,20 @@ class Station extends Resource {
 		this.propertyChange(`stationType`, type);
 	}
 
-	private _dispatcher: User;
+	private _dispatcher?: User;
 	public get dispatcher() {
 		return this._dispatcher;
 	}
-	private set dispatcher(disp: User) {
+	private set dispatcher(disp: User | undefined) {
 		this._dispatcher = disp;
 		const trueTimestamp = this.realm.timeManager.trueMs;
 		this.manager.db.redis.xadd(
 			this.manager.key(`${this.id}:dispatchers`),
 			"*",
 			"id",
-			disp?.id,
+			disp?.id ?? "",
 			"type",
-			disp?.type,
+			disp?.type ?? "",
 			"time",
 			trueTimestamp
 		);
@@ -146,6 +146,16 @@ class Station extends Resource {
 
 		// TODO: auditing
 
+		if (
+			typeof data.dispatcherId === "string" &&
+			this.realm.client.userManager.get(data.dispatcherId)
+		) {
+			this.setDispatcher(
+				this.realm.client.userManager.get(data.dispatcherId),
+				actor
+			);
+			modified = true;
+		}
 		if (typeof data.name === "string") {
 			this.name = data.name;
 			modified = true;
@@ -158,17 +168,28 @@ class Station extends Resource {
 			this.stationType = data.stationType;
 			modified = true;
 		}
-		if (
-			typeof data.dispatcherId === "string" &&
-			this.realm.client.userManager.get(data.dispatcherId)
-		) {
-			this.dispatcher = this.realm.client.userManager.get(
-				data.dispatcherId
-			);
-			modified = true;
-		}
 
 		if (!modified) return false;
+
+		return true;
+	}
+
+	setDispatcher(disp: User | undefined, actor: User) {
+		const self = actor.hasPermission("assign self");
+		const others = actor.hasPermission("assign users");
+		if (
+			((disp === actor ||
+				(disp == undefined && this.dispatcher === actor)) &&
+				!self &&
+				!others) ||
+			!others
+		)
+			throw new ForbiddenError(`No permission`, {
+				permission: "assign self XOR assign users",
+			});
+
+		if (disp === this.dispatcher) return;
+		this.dispatcher = disp;
 
 		return true;
 	}
@@ -179,13 +200,18 @@ class Station extends Resource {
 	 */
 	async save() {
 		// Add the base metadata
-		await this.manager.db.add(this.id, this.metadata());
+		await this.manager.db.redis.hset(this.managerId, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
 
 		// Add the track metadata
 		if (this.tracks.size > 0)
 			await this.manager.db.redis.hset(
 				this.manager.key(`${this.id}:tracks`),
-				this.tracks.map((tr) => [tr.id, JSON.stringify(tr.metadata())])
+				this.tracks
+					.map((tr) => [tr.id, JSON.stringify(tr.metadata())])
+					.flat()
 			);
 
 		return true;

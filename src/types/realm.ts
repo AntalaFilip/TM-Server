@@ -12,7 +12,7 @@ import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
 import User from "./user";
 
-interface RealmOptions extends ResourceOptions {
+interface RealmOptions extends ResourceOptions<null> {
 	name: string;
 	ownerId: string;
 	ionsp?: SIONamespace;
@@ -20,8 +20,7 @@ interface RealmOptions extends ResourceOptions {
 	activeTimetableId?: string;
 }
 
-class Realm extends Resource {
-	public readonly id: string;
+class Realm extends Resource<null> {
 	public readonly logger: TMLogger;
 
 	private _ownerId: string;
@@ -55,16 +54,18 @@ class Realm extends Resource {
 		return null;
 	}
 
-	private _activeTimetableId: string;
+	private _activeTimetableId?: string;
 	public get activeTimetableId() {
 		return this._activeTimetableId;
 	}
-	private set activeTimetableId(id: string) {
+	private set activeTimetableId(id: string | undefined) {
 		this._activeTimetableId = id;
 		this.propertyChange(`activeTimetableId`, id);
 	}
-	public get activeTimetable() {
-		return this.timetableManager?.get(this.activeTimetableId);
+	public get activeTimetable(): Timetable | undefined {
+		return this.activeTimetableId
+			? this.timetableManager.get(this.activeTimetableId)
+			: undefined;
 	}
 
 	// Managers
@@ -87,9 +88,9 @@ class Realm extends Resource {
 
 		this.stationManager = new StationManager(this);
 		this.timeManager = new TimeManager(this);
+		this.movableManager = new MovableManager(this);
 		this.trainSetManager = new TrainSetManager(this);
 		this.trainManager = new TrainManager(this);
-		this.movableManager = new MovableManager(this);
 		this.timetableManager = new TimetableManager(this);
 
 		// eslint-disable-next-line no-async-promise-executor
@@ -109,11 +110,11 @@ class Realm extends Resource {
 						if (!c) throw new Error("invalid timetable");
 					} catch (err) {
 						this.logger.warn(
-							`Invalid active timetable (${this._activeTimetableId.slice(
-								this._activeTimetableId.length - 6
+							`Invalid active timetable (${this.activeTimetable.id.slice(
+								this.activeTimetable.id.length - 6
 							)})! Resetting...`
 						);
-						this._activeTimetableId = null;
+						this._activeTimetableId = undefined;
 						// TODO: notify
 					}
 				}

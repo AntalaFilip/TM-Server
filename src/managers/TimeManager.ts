@@ -10,6 +10,7 @@ interface TimeOptions {
 	trueElapsed?: number;
 	elapsed?: number;
 	running?: boolean;
+	restricted: boolean;
 }
 
 /**
@@ -31,6 +32,16 @@ class TimeManager extends BaseManager {
 	public readonly ready: Promise<void>;
 	public override readonly logger: TMLogger;
 
+	private _restricted = true;
+	public get restricted() {
+		return this._restricted;
+	}
+	private set restricted(state: boolean) {
+		this.save(false, true);
+		this._restricted = state;
+		this.save();
+	}
+
 	private _running = false;
 	/** Whether the time is currently running */
 	public get running() {
@@ -42,7 +53,7 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _startPoint: number;
+	private _startPoint = NaN;
 	/** The starting point of true realm time in milliseconds */
 	public get startPoint() {
 		return this._startPoint;
@@ -53,7 +64,7 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _speedModifier: number;
+	private _speedModifier = NaN;
 	/** The speed modifier of the true realm time opposed to real time */
 	public get speedModifier() {
 		return this._speedModifier;
@@ -65,13 +76,13 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _elapsed: number;
+	private _elapsed = NaN;
 	/** Time of the last save */
 	public get elapsed() {
 		return this._elapsed;
 	}
 
-	private _trueElapsed: number;
+	private _trueElapsed = NaN;
 	/** True elapsed time (TrueMS) at last data save */
 	public get trueElapsed() {
 		return this._trueElapsed;
@@ -130,11 +141,12 @@ class TimeManager extends BaseManager {
 					}
 				}
 
+				this._restricted = options?.restricted ?? false;
 				this._startPoint = options?.startPoint ?? 0;
-				// max allowed speed is 1000x
+				// max allowed speed is 100x
 				this._speedModifier =
-					(options?.speedModifier > 1000
-						? 1000
+					((options?.speedModifier ?? 1) > 100
+						? 100
 						: options?.speedModifier) ?? 1;
 				this._elapsed = options?.elapsed ?? Date.now();
 				this._trueElapsed = options?.trueElapsed ?? 0;
@@ -172,6 +184,7 @@ class TimeManager extends BaseManager {
 			trueElapsed: this.trueMs,
 			elapsed: this.elapsed,
 			running: this.running,
+			restricted: this.restricted,
 		};
 	}
 
@@ -183,6 +196,13 @@ class TimeManager extends BaseManager {
 			throw new ForbiddenError(`No permission`, {
 				tmCode: `ENOPERM`,
 				permission: `control time`,
+			});
+
+		if (this.restricted && !actor.hasPermission("manage time", this.realm))
+			throw new ForbiddenError(`No permission`, {
+				tmCode: `ENOPERM`,
+				permission: `manage time`,
+				extension: `restricted`,
 			});
 
 		// TODO: auditing
@@ -199,6 +219,7 @@ class TimeManager extends BaseManager {
 
 		// TODO: auditing
 
+		// TODO: startpoint changes are potentially destructive
 		if (typeof data.startPoint === "number") {
 			this.startPoint = data.startPoint;
 			modified = true;
@@ -209,6 +230,10 @@ class TimeManager extends BaseManager {
 		}
 		if (typeof data.running === "boolean") {
 			this.running = data.running;
+			modified = true;
+		}
+		if (typeof data.restricted === "boolean") {
+			this.restricted = data.restricted;
 			modified = true;
 		}
 

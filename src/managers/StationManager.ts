@@ -25,7 +25,7 @@ class StationManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): Station {
+	get(id: string): Station | undefined {
 		return this.stations.get(id);
 	}
 	getOne(id: string) {
@@ -57,7 +57,7 @@ class StationManager extends ResourceManager {
 		return resource;
 	}
 
-	async fromResourceIdentifier(fullId: string): Promise<Station> {
+	async fromResourceIdentifier(fullId: string): Promise<Station | undefined> {
 		if (!(await this.db.redis.exists(fullId, `${fullId}:tracks`))) return;
 
 		const stationMeta = (await this.db.get(fullId)) as StationOptions;
@@ -73,26 +73,43 @@ class StationManager extends ResourceManager {
 	}
 
 	private async createAllFromStore() {
-		const prefix = process.env.REDIS_PREFIX;
-		const allStationIds = (
-			await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)
-		).map((k) => k.slice(prefix.length));
-		if (!allStationIds || allStationIds.length === 0) return;
-
-		const allStations = await this.db.redis.mget(allStationIds);
-		const arr = allStationIds.map((v, i) => [v, allStations[i]]);
+		const allStations = await this.db.redis.hgetall(this.id);
+		const arr = Object.entries(allStations);
 		for (const r of arr) {
 			try {
 				const k = r[0];
 				const v = JSON.parse(r[1]) as StationOptions;
-				const trackData = await this.db.redis.hgetall(`${k}:tracks`);
+				const trackData = await this.db.redis.hgetall(
+					`${this.key(k)}:tracks`
+				);
 				const tracks = Object.entries(trackData)
 					.map(([_k, v]) => JSON.parse(v) as StationTrackOptions)
 					.map((meta) => new StationTrack(meta));
 				v.tracks = tracks;
+
+				const dispd = await this.db.redis.xrevrange(
+					`${this.key(k)}:dispatchers`,
+					"+",
+					"-",
+					"COUNT",
+					1
+				);
+				const lastDisp = dispd[0];
+				if (lastDisp && lastDisp[1]) {
+					const id = lastDisp[1][1];
+					const type = lastDisp[1][3];
+					if (type === "user" && id) {
+						const u = this.client.userManager.get(id);
+						if (u) {
+							v.dispatcher = u;
+						}
+					}
+				}
+
 				await this.create(v);
-			} catch {
+			} catch (err) {
 				this.logger.warn(`Malformed station data @ ${r[0]}`);
+				if (err instanceof Error) this.logger.verbose(err.message);
 			}
 		}
 

@@ -1,6 +1,11 @@
 import Collection from "@discordjs/collection";
+import Movable from "../types/movable";
 import Realm from "../types/realm";
-import TrainSet, { TrainSetOptions } from "../types/trainset";
+import TMError from "../types/tmerror";
+import TrainSet, {
+	TrainSetOptions,
+	TrainSetOptionsMetadata,
+} from "../types/trainset";
 import User from "../types/user";
 import ResourceManager from "./ResourceManager";
 
@@ -15,15 +20,13 @@ class TrainSetManager extends ResourceManager {
 
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
-				this.logger.debug(
-					`Ready; ${this.trainsets.size} sets loaded`
-				);
+				this.logger.debug(`Ready; ${this.trainsets.size} sets loaded`);
 				res();
 			});
 		});
 	}
 
-	get(id: string): TrainSet {
+	get(id: string): TrainSet | undefined {
 		return this.trainsets.get(id);
 	}
 	getOne(id: string) {
@@ -43,7 +46,7 @@ class TrainSetManager extends ResourceManager {
 		if (!(resource instanceof TrainSet)) {
 			resource = new TrainSet(resource);
 		}
-		if (!(resource instanceof TrainSet)) return;
+		if (!(resource instanceof TrainSet)) throw new TMError(`EINTERNAL`);
 
 		if (this.trainsets.has(resource.id))
 			throw new Error(`This TrainSet is already created!`);
@@ -53,23 +56,42 @@ class TrainSetManager extends ResourceManager {
 		return resource;
 	}
 
-	async fromResourceIdentifier(id: string): Promise<TrainSet> {
+	async fromResourceIdentifier(id: string): Promise<TrainSet | undefined> {
 		if (!(await this.db.redis.hexists(this.id, id))) return;
 
 		const setData = await this.db.redis.hget(this.id, id);
+		if (!setData) throw new TMError(`EDBERROR`);
 		const setMeta = JSON.parse(setData) as TrainSetOptions;
 
 		return new TrainSet(setMeta);
 	}
 
 	private async createAllFromStore() {
+		await this.realm.movableManager.ready;
 		const allSets = await this.db.redis.hgetall(this.id);
 		const arr = Object.entries(allSets);
 		for (const r of arr) {
 			try {
-				const v = JSON.parse(r[1]) as TrainSetOptions;
-				await this.create(v);
-			} catch {
+				const v = JSON.parse(r[1]) as TrainSetOptionsMetadata;
+				const components = v.componentIds
+					.map((c) => this.realm.movableManager.get(c))
+					.filter((m) => m instanceof Movable);
+				// TODO: self-healing
+				if (components.length != v.componentIds.length)
+					throw new TMError(
+						`ETSBADCOMPONENTID`,
+						"Invalid component ID passed!",
+						{
+							got: v.componentIds,
+							found: components?.map((c) => c.id),
+						}
+					);
+				const opt = {
+					...v,
+					components,
+				};
+				await this.create(opt);
+			} catch (err) {
 				this.logger.warn(`Malformed trainset data @ ${r[0]}`);
 			}
 		}

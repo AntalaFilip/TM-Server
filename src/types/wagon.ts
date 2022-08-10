@@ -1,14 +1,21 @@
 import Movable, { MovableOptions } from "./movable";
+import Train from "./train";
 import User from "./user";
 
-type WagonType = "PASSENGER" | "CARGO";
+type WagonType = keyof typeof WagonTypes;
+const WagonTypes = {
+	PASSENGER: 1 << 1,
+	CARGO: 1 << 2,
+};
 
 interface WagonOptions extends MovableOptions {
 	wagonType: WagonType;
 }
 
 function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
-	return toCheck === "PASSENGER" || toCheck === "CARGO";
+	return (
+		typeof toCheck === "string" && Object.keys(WagonTypes).includes(toCheck)
+	);
 }
 
 class Wagon extends Movable {
@@ -28,6 +35,12 @@ class Wagon extends Movable {
 		this._wagonType = options.wagonType;
 	}
 
+	public get currentTrain(): Train | undefined {
+		return this.realm.trainManager.trains.find((t) =>
+			Boolean(t.trainSets.find((s) => s.components.includes(this)))
+		);
+	}
+
 	metadata(): WagonOptions {
 		return {
 			couplerType: this.couplerType,
@@ -38,7 +51,7 @@ class Wagon extends Movable {
 						stationId: this.currentLocation?.station?.id,
 						trackId: this.currentLocation?.track?.id,
 				  }
-				: null,
+				: undefined,
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,
@@ -91,4 +104,4 @@ class Wagon extends Movable {
 }
 
 export default Wagon;
-export { WagonOptions, WagonType, checkWagonTypeValidity };
+export { WagonOptions, WagonType, checkWagonTypeValidity, WagonTypes };

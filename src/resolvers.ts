@@ -6,7 +6,7 @@ import {
 } from "apollo-server-core";
 import DateScalar from "./graphql/dateScalar";
 import Client from "./types/client";
-import TimetableEntry from "./types/entry";
+import TimetableEntry, { ArrDepSet } from "./types/entry";
 import Locomotive from "./types/locomotive";
 import Movable from "./types/movable";
 import Realm from "./types/realm";
@@ -14,6 +14,9 @@ import { TrainState } from "./types/train";
 import TrainSet from "./types/trainset";
 import User, { UserPermissions } from "./types/user";
 import Wagon from "./types/wagon";
+import LongScalar from "graphql-type-long";
+import Station from "./types/station";
+import { firstCapital } from "./helpers/string";
 
 type GQLContext = {
 	user?: User;
@@ -22,11 +25,40 @@ type GQLContext = {
 function createGQLResolvers(client: Client) {
 	const resolvers = {
 		Date: DateScalar,
+		Long: LongScalar,
+		Movable: {
+			__resolveType: (obj: Movable) => firstCapital(obj.type),
+		},
 		TrainSet: {
 			trains: (parent: TrainSet) =>
 				parent.realm.trainManager.trains.filter((t) =>
 					t.trainSets.includes(parent)
 				),
+		},
+		TimetableEntry: {
+			cancelledAds: (parent: TimetableEntry) =>
+				parent.cancelledAds.map(
+					(a) =>
+						new ArrDepSet({
+							no: a,
+							entryId: parent.id,
+							timetableId: parent.timetable.id,
+							managerId: parent.manager.id,
+						})
+				),
+			delayedAds: (parent: TimetableEntry) =>
+				parent.delayedAds.map((d, no) => ({
+					delay: d,
+					ads: new ArrDepSet({
+						no,
+						entryId: parent.id,
+						timetableId: parent.timetable.id,
+						managerId: parent.manager.id,
+					}),
+				})),
+		},
+		Station: {
+			tracks: (parent: Station) => Array.from(parent.tracks.values()),
 		},
 		Query: {
 			stations: async (_p: never, a: { realm: string }) => {
@@ -82,14 +114,17 @@ function createGQLResolvers(client: Client) {
 			},
 			timetables: async (_p: never, a: { realm: string }) => {
 				return Array.from(
-					client.get(a.realm)?.timetableManager.timetables.values()
+					client.get(a.realm)?.timetableManager.timetables.values() ??
+						[]
 				);
 			},
 			timetable: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.timetableManager.get(a.id);
 			},
-			users: async () => {
-				return Array.from(client.userManager.users.values());
+			users: async (_p: never, a: { disabled?: boolean }) => {
+				return Array.from(client.userManager.users.values()).filter(
+					(u) => !u.disabled || a.disabled
+				);
 			},
 			user: async (_p: never, a: { id: string }) => {
 				return client.userManager.get(a.id);
@@ -154,6 +189,38 @@ function createGQLResolvers(client: Client) {
 				station.modify(a.input, c.user);
 				return station;
 			},
+			setStationDispatcher: async (
+				_p: never,
+				a: { realm: string; station: string; dispatcher: string },
+				c: GQLContext
+			) => {
+				if (!c.user)
+					throw new AuthenticationError(`Unauthenticated`, {
+						tmCode: `ENOAUTH`,
+					});
+
+				const realm = client.get(a.realm);
+				if (!realm)
+					throw new UserInputError(`Invalid Realm ID!`, {
+						tmCode: `EBADPARAM`,
+						extension: `REALM`,
+					});
+				const station = realm.stationManager.get(a.station);
+				if (!station)
+					throw new UserInputError(`Invalid Station ID!`, {
+						code: `EBADPARAM`,
+						extension: `STATION`,
+					});
+				const dispatcher = client.userManager.get(a.dispatcher);
+				if (!dispatcher && a.dispatcher)
+					throw new UserInputError(`Invalid User ID!`, {
+						code: `EBADPARAM`,
+						extension: `STATION`,
+					});
+
+				station.setDispatcher(dispatcher, c.user);
+				return station;
+			},
 			addStationTrack: async (
 				_p: never,
 				a: { realm: string; station: string; input: any },
@@ -182,6 +249,7 @@ function createGQLResolvers(client: Client) {
 						...a.input,
 						realmId: realm.id,
 						managerId: realm.stationManager.id,
+						stationId: realm.stationManager.key(station.id),
 					},
 					c.user
 				);
@@ -748,8 +816,15 @@ function createGQLResolvers(client: Client) {
 					a.input.permissions.realm = realmPermissions;
 				}
 
+				const passwordHash = a.input.password
+					? User.hashPassword(a.input.password)
+					: undefined;
 				return await client.userManager.create(
-					{ ...a.input, managerId: client.userManager.id },
+					{
+						...a.input,
+						managerId: client.userManager.id,
+						passwordHash,
+					},
 					c.user
 				);
 			},

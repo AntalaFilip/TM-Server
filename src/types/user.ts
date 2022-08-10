@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
 import Realm from "./realm";
+import Locomotive from "./locomotive";
 
 interface UserOptions extends UserPublicData {
 	passwordHash?: string;
@@ -10,13 +11,19 @@ interface UserOptions extends UserPublicData {
 	realmId: null;
 }
 
-interface UserPublicData extends ResourceOptions {
-	id?: string;
+type UserConstructorOptions = Omit<UserOptions, "id"> & { id?: string };
+
+interface UserPublicData extends Omit<ResourceOptions, "realmId"> {
+	id: string;
 	name: string;
 	username: string;
 	disabled?: boolean;
 	admin?: boolean;
+	realmId: null;
 	permissions?: UserPermissionsMetadata;
+	dispatching?: { realm: string; station: string };
+	controlling?: { realm: string; locomotive: string }[];
+	owning?: string[];
 }
 
 interface UserPermissions {
@@ -29,18 +36,9 @@ interface UserPermissionsMetadata {
 	realm: [string, number][];
 }
 
-type Permission =
-	| "manage realm"
-	| "manage users"
-	| "manage stations"
-	| "manage movables"
-	| "manage time"
-	| "control time"
-	| "assign users"
-	| "manage trains"
-	| "manage timetables";
+type Permission = keyof typeof PermissionMap;
 
-const PermissionMap: Record<Permission, number> = {
+const PermissionMap = {
 	"manage realm": 1 << 0,
 	"manage users": 1 << 1,
 	"manage stations": 1 << 2,
@@ -50,15 +48,14 @@ const PermissionMap: Record<Permission, number> = {
 	"assign users": 1 << 6,
 	"manage trains": 1 << 7,
 	"manage timetables": 1 << 8,
+	"assign self": 1 << 9,
 };
 
 interface UserSettings {
 	theme?: string;
 }
 
-class User extends Resource {
-	public readonly realmId: null;
-
+class User extends Resource<UserManager> {
 	private _name: string;
 	public get name() {
 		return this._name;
@@ -77,11 +74,11 @@ class User extends Resource {
 		this.propertyChange("username", this.username);
 	}
 
-	private _passwordHash: string;
+	private _passwordHash?: string;
 	private get passwordHash() {
 		return this._passwordHash;
 	}
-	private set passwordHash(hash: string) {
+	private set passwordHash(hash: string | undefined) {
 		this._passwordHash = hash;
 		this.save();
 	}
@@ -107,6 +104,31 @@ class User extends Resource {
 		this.save();
 	}
 
+	public get controlling() {
+		return Array.from(this.userManager.client.realms.values())
+			.flatMap(
+				(r) =>
+					Array.from(
+						r.movableManager.movables
+							.filter((v) => v instanceof Locomotive)
+							.values()
+					) as Locomotive[]
+			)
+			.filter((m) => m.controller === this);
+	}
+
+	public get owning() {
+		return Array.from(this.userManager.client.realms.values()).filter(
+			(r) => r.owner === this
+		);
+	}
+
+	public get dispatching() {
+		return this.userManager.client.realms
+			.flatMap((r) => r.stationManager.stations)
+			.find((s) => s.dispatcher === this);
+	}
+
 	private readonly permissions: UserPermissions;
 
 	public readonly settings: UserSettings;
@@ -114,7 +136,7 @@ class User extends Resource {
 		return BaseManager.get(`users`) as UserManager;
 	}
 
-	constructor(options: UserOptions) {
+	constructor(options: UserConstructorOptions) {
 		options.managerId = "users";
 		super("user", options);
 
@@ -127,7 +149,7 @@ class User extends Resource {
 			realm: new Map(options.permissions?.realm),
 		};
 		this.settings = options.settings ?? {};
-		this.disabled = options.disabled ?? false;
+		this._disabled = options.disabled ?? false;
 	}
 
 	metadata(): UserOptions {
@@ -201,6 +223,17 @@ class User extends Resource {
 			permissions: this.permissionMeta(),
 			managerId: this.managerId,
 			realmId: this.realmId,
+			dispatching: this.dispatching
+				? {
+						realm: this.dispatching.realmId,
+						station: this.dispatching.id,
+				  }
+				: undefined,
+			controlling: this.controlling.map((c) => ({
+				realm: c.realmId,
+				locomotive: c.id,
+			})),
+			owning: this.owning.map((r) => r.id),
 		};
 	}
 	fullMetadata() {
@@ -221,8 +254,10 @@ class User extends Resource {
 			perm === null ||
 			(this.permissions.global & PermissionMap[perm]) ===
 				PermissionMap[perm] ||
-			(this.permissions.realm.get(realm?.id) & PermissionMap[perm]) ===
-				PermissionMap[perm] ||
+			(realm &&
+				((this.permissions.realm.get(realm.id) ?? 0) &
+					PermissionMap[perm]) ===
+					PermissionMap[perm]) ||
 			realm?.owner === this ||
 			this.admin
 		);
@@ -264,4 +299,5 @@ export {
 	UserPermissions,
 	UserPermissionsMetadata,
 	Permission,
+	UserConstructorOptions
 };
