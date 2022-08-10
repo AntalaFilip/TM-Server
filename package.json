@@ -27,7 +27,7 @@
 		"@discordjs/collection": "^0.7.0",
 		"@socket.io/admin-ui": "^0.4.0",
 		"apollo-server-core": "^3.10.0",
-		"apollo-server-express": "^3.10.0",
+		"apollo-server-express": "^3.10.1",
 		"bcrypt": "^5.0.1",
 		"chalk": "^4.1.2",
 		"cookie-parser": "^1.4.6",
