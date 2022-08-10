@@ -3,6 +3,7 @@ import { ForbiddenError } from "apollo-server-core";
 import TimetableEntry, { TimetableEntryOptions } from "../types/entry";
 import Realm from "../types/realm";
 import Timetable, { TimetableOptions } from "../types/timetable";
+import TMError from "../types/tmerror";
 import User from "../types/user";
 import ResourceManager from "./ResourceManager";
 
@@ -29,7 +30,7 @@ class TimetableManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): Timetable {
+	get(id: string): Timetable | undefined {
 		return this.timetables.get(id);
 	}
 	getOne(id: string) {
@@ -39,7 +40,9 @@ class TimetableManager extends ResourceManager {
 		return this.timetables.map((tt) => tt.fullMetadata());
 	}
 
-	async fromResourceIdentifier(fullId: string): Promise<Timetable> {
+	async fromResourceIdentifier(
+		fullId: string
+	): Promise<Timetable | undefined> {
 		if (!(await this.db.redis.exists(fullId))) return;
 
 		const timetableMeta = (await this.db.get(fullId)) as TimetableOptions;
@@ -66,7 +69,7 @@ class TimetableManager extends ResourceManager {
 		if (!(resource instanceof Timetable)) {
 			resource = new Timetable(resource);
 		}
-		if (!(resource instanceof Timetable)) return;
+		if (!(resource instanceof Timetable)) throw new TMError("EINTERNAL");
 
 		if (this.timetables.has(resource.id))
 			throw new Error(`This Timetable is already created!`);
@@ -77,14 +80,8 @@ class TimetableManager extends ResourceManager {
 	}
 
 	private async createAllFromStore() {
-		const prefix = process.env.REDIS_PREFIX;
-		const allTimetableIds = (
-			await this.db.redis.keys(`${prefix}${this.id}:*[a-Z^:]`)
-		).map((k) => k.slice(prefix.length));
-		if (!allTimetableIds || allTimetableIds.length === 0) return;
-
-		const allTimetables = await this.db.redis.mget(allTimetableIds);
-		const arr = allTimetableIds.map((v, i) => [v, allTimetables[i]]);
+		const allTimetables = await this.db.redis.hgetall(this.id);
+		const arr = Object.entries(allTimetables);
 		for (const r of arr) {
 			try {
 				const k = r[0];

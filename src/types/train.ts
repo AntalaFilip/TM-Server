@@ -1,4 +1,5 @@
 import { ForbiddenError } from "apollo-server-core";
+import TimetableEntry from "./entry";
 import Locomotive from "./locomotive";
 import { MovableLocation, MovableLocationMeta } from "./movable";
 import Resource, { ResourceOptions } from "./resource";
@@ -62,11 +63,11 @@ class Train extends Resource {
 		this._short = short;
 	}
 
-	private _locomotive: Locomotive;
+	private _locomotive?: Locomotive;
 	public get locomotive() {
 		return this._locomotive;
 	}
-	private set locomotive(loco: Locomotive) {
+	private set locomotive(loco: Locomotive | undefined) {
 		this._locomotive = this.locomotive;
 		const trueTimestamp = this.realm.timeManager.trueMs;
 		// TODO: what about paused time?
@@ -74,20 +75,20 @@ class Train extends Resource {
 			this.manager.key(`${this.id}:locomotives`),
 			"*",
 			"id",
-			loco?.id,
+			loco?.id ?? "",
 			"type",
-			loco?.type,
+			loco?.type ?? "",
 			"time",
 			trueTimestamp
 		);
 		this.propertyChange(`locomotive`, loco);
 	}
 
-	private _location: MovableLocation;
+	private _location?: MovableLocation;
 	public get location() {
 		return this._location;
 	}
-	private set location(newloc: MovableLocation) {
+	private set location(newloc: MovableLocation | undefined) {
 		this._location = newloc;
 		// TODO: paused time?
 		const trueTimestamp = this.realm.timeManager.trueMs;
@@ -95,11 +96,11 @@ class Train extends Resource {
 			this.manager.key(`${this.id}:locations`),
 			"*",
 			"id",
-			newloc?.station.id,
+			newloc?.station.id ?? "",
 			"type",
-			newloc?.station.type,
+			newloc?.station.type ?? "",
 			"track",
-			newloc?.track?.id,
+			newloc?.track?.id ?? "",
 			"time",
 			trueTimestamp
 		);
@@ -134,26 +135,26 @@ class Train extends Resource {
 		).sort((a, b) => a.start.getTime() - b.start.getTime());
 	}
 
-	private _currentEntryId: string;
+	private _currentEntryId?: string;
 	public get currentEntryId() {
 		return this._currentEntryId;
 	}
-	private set currentEntryId(id: string) {
+	private set currentEntryId(id: string | undefined) {
 		this._currentEntryId = id;
 		const trueTimestamp = this.realm.timeManager.trueMs;
 		this.manager.db.redis.xadd(
 			this.manager.key(`${this.id}:entries`),
 			"*",
 			"id",
-			id,
+			this.currentEntryId ?? "",
 			"type",
-			"timetableentry",
+			this.currentEntry?.type ?? "",
 			"time",
 			trueTimestamp
 		);
 		this.propertyChange(`currentEntryId`, id, true);
 	}
-	public get currentEntry() {
+	public get currentEntry(): TimetableEntry | undefined {
 		return (
 			this.allEntries?.find((e) => e.id === this.currentEntryId) ??
 			this.allEntries[0]
@@ -161,6 +162,7 @@ class Train extends Resource {
 	}
 
 	public get nextEntry() {
+		if (!this.currentEntry) return;
 		return (
 			this.allEntries[this.allEntries.indexOf(this.currentEntry) + 1] ??
 			this.allEntries[0]
@@ -181,6 +183,7 @@ class Train extends Resource {
 		this.trainSets = options.trainSets ?? [];
 		this._state = options.state ?? `MISSING`;
 		this._location = options.location;
+		this._currentEntryId = options.currentEntryId;
 	}
 
 	/**
@@ -209,20 +212,25 @@ class Train extends Resource {
 				{ tmCode: `ENOPERM`, permission: `manage trains` }
 			);
 		const prevState = this.state;
+		if (!this.currentEntry)
+			throw new TMError(
+				`ENOCURRENTENTRY`,
+				`There is no current entry for this Train!`
+			);
 		// TODO: autoskipping and stuff
 		if (newState === prevState) return;
 		if (newState === "MOVING") {
-			this.location = null;
+			this.location = undefined;
 			if (prevState != "MISSING") {
 				this.currentEntry.nextSet();
 				this.currentEntryId = this.nextEntry?.id;
 			}
 		} else if (newState === "ARRIVED") {
-			const track: StationTrack =
-				this.currentEntry.station.tracks.get(extra[0]) ??
+			const track: StationTrack | undefined =
+				this.currentEntry.station?.tracks.get(extra[0]) ??
 				this.currentEntry.track;
 
-			if (track.currentTrain && track.currentTrain != this)
+			if (track?.currentTrain && track.currentTrain !== this)
 				throw new Error("Track is occupied!");
 
 			this.location = {
@@ -232,10 +240,12 @@ class Train extends Resource {
 		} else if (newState === "READY") {
 			this.runStateChecks(override);
 		} else if (newState === "LEAVING") {
-			if (prevState != "READY") this.runStateChecks(override);
-			this.location = { ...this.location, track: null };
+			if (prevState !== "READY") this.runStateChecks(override);
+			if (!this.location)
+				throw new TMError(`EINTERNALERROR`, `Invalid location!`);
+			this.location = { ...this.location, track: undefined };
 		} else if (newState === "MISSING") {
-			this.location = null;
+			this.location = undefined;
 		}
 
 		this.state = newState;
@@ -273,7 +283,7 @@ class Train extends Resource {
 		) {
 			const trainSets = data.trainSetIds
 				.map((c) => this.realm.trainSetManager.get(c))
-				.filter((c) => c instanceof TrainSet);
+				.filter((c) => c instanceof TrainSet) as TrainSet[];
 			if (trainSets.length === data.trainSetIds.length) {
 				await this.newTrainSets(trainSets);
 				modified = true;
@@ -298,7 +308,7 @@ class Train extends Resource {
 		if (this.trainSets != this.currentEntry?.sets && !override)
 			throw new TMError(`ETRCHKSETSNOMATCH`, `Train sets do not match!`, {
 				train: this.id,
-				expectedSets: this.currentEntry.sets.map((s) => s.id),
+				expectedSets: this.currentEntry?.sets.map((s) => s.id),
 				currentSets: this.trainSets.map((s) => s.id),
 			});
 		if (this.locomotive != this.currentEntry?.locomotive && !override)
@@ -307,8 +317,8 @@ class Train extends Resource {
 				`Locomotives do not match!`,
 				{
 					train: this.id,
-					expectedLocomotive: this.currentEntry.locomotive.id,
-					currentLocomotive: this.locomotive.id,
+					expectedLocomotive: this.currentEntry?.locomotive.id,
+					currentLocomotive: this.locomotive?.id,
 				}
 			);
 

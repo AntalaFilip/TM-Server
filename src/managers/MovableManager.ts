@@ -2,6 +2,7 @@ import Collection from "@discordjs/collection";
 import Locomotive from "../types/locomotive";
 import Movable, { MovableOptions } from "../types/movable";
 import Realm from "../types/realm";
+import TMError from "../types/tmerror";
 import User from "../types/user";
 import Wagon, { WagonOptions } from "../types/wagon";
 import ResourceManager from "./ResourceManager";
@@ -37,7 +38,7 @@ class MovableManager extends ResourceManager {
 				resource = new Locomotive(resource);
 			else if (resource.type === "WAGON")
 				resource = new Wagon(resource as WagonOptions);
-			else return;
+			else throw new TMError(`EINTERNAL`, `Bad resource type passed!`);
 		}
 
 		if (this.movables.has(resource.id))
@@ -49,7 +50,9 @@ class MovableManager extends ResourceManager {
 	}
 
 	get(id: string): Movable {
-		return this.movables.get(id);
+		const mv = this.movables.get(id);
+		if (!mv) throw new TMError(`EINTERNAL`);
+		return mv;
 	}
 	getOne(id: string) {
 		return this.get(id)?.fullMetadata();
@@ -60,13 +63,13 @@ class MovableManager extends ResourceManager {
 
 	getLoco(id: string): Locomotive {
 		const obj = this.get(id);
-		if (!obj || !Locomotive.is(obj)) return;
+		if (!obj || !Locomotive.is(obj)) throw new TMError("EINTERNAL");
 		return obj;
 	}
 
 	getWagon(id: string): Wagon {
 		const obj = this.get(id);
-		if (!obj || !Wagon.is(obj)) return;
+		if (!obj || !Wagon.is(obj)) throw new TMError(`EINTERNAL`);
 		return obj;
 	}
 
@@ -91,7 +94,9 @@ class MovableManager extends ResourceManager {
 		return true;
 	}
 
-	async fromResourceIdentifier(id: string): Promise<Locomotive | Wagon> {
+	async fromResourceIdentifier(
+		id: string
+	): Promise<Locomotive | Wagon | undefined> {
 		const movableData = await this.db.redis.hget(this.id, id);
 		if (!movableData) return;
 

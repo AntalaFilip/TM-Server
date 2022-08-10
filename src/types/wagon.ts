@@ -35,7 +35,7 @@ class Wagon extends Movable {
 		this._wagonType = options.wagonType;
 	}
 
-	public get currentTrain(): Train {
+	public get currentTrain(): Train | undefined {
 		return this.realm.trainManager.trains.find((t) =>
 			Boolean(t.trainSets.find((s) => s.components.includes(this)))
 		);
@@ -51,7 +51,7 @@ class Wagon extends Movable {
 						stationId: this.currentLocation?.station?.id,
 						trackId: this.currentLocation?.track?.id,
 				  }
-				: null,
+				: undefined,
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,

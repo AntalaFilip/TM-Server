@@ -1,17 +1,17 @@
 import TMLogger from "../helpers/logger";
 import Realm from "../types/realm";
-import Resource, { ResourceOptions } from "../types/resource";
+import Resource, { ManagerType, ResourceContructorOptions, ResourceOptions } from "../types/resource";
 import User from "../types/user";
 import BaseManager from "./BaseManager";
 
 const managers = new Map<string, ResourceManager>();
 
-interface ResourceData {
-	fromResourceIdentifier(fullId: string): Resource | Promise<Resource>;
-	create(resource: Resource | ResourceOptions): Resource | Promise<Resource>;
-	getOne(id: string): ResourceOptions;
-	getAll(): ResourceOptions[];
-	get(id: string): Resource;
+interface ResourceData<M extends ManagerType = ResourceManager> {
+	fromResourceIdentifier(fullId: string): Resource<M> | undefined |  Promise<Resource<M> | undefined>;
+	create(resource: Resource<M> | ResourceContructorOptions<M>): Resource<M> |  Promise<Resource<M>>;
+	getOne(id: string): ResourceOptions<M> | undefined;
+	getAll(): ResourceOptions<M>[];
+	get(id: string): Resource<M> | undefined;
 }
 
 abstract class ResourceManager extends BaseManager implements ResourceData {
@@ -32,20 +32,22 @@ abstract class ResourceManager extends BaseManager implements ResourceData {
 	}
 
 	static get(id: string): ResourceManager {
-		return managers.get(id);
+		const manager = managers.get(id);
+		if (!manager) throw new Error('Invalid manager');
+		return manager;
 	}
 
 	abstract fromResourceIdentifier(
 		fullId: string
-	): Resource | Promise<Resource>;
+	): Resource | undefined | Promise<Resource | undefined>;
 
-	abstract get(id: string): Resource;
+	abstract get(id: string): Resource | undefined;
 
-	abstract getOne(id: string): ResourceOptions;
+	abstract getOne(id: string): ResourceOptions | undefined;
 	abstract getAll(): ResourceOptions[];
 
 	abstract create(
-		resource: Resource | ResourceOptions,
+		resource: Resource | ResourceContructorOptions,
 		actor?: User
 	): Resource | Promise<Resource>;
 

@@ -2,7 +2,7 @@ import RedisClient from "ioredis";
 import { config } from "dotenv";
 config();
 
-const redis = new RedisClient(process.env.REDIS_URL, {
+const redis = new RedisClient(process.env.REDIS_URL ?? "redis://localhost", {
 	password: process.env.REDIS_PASS,
 	username: `tmgr`,
 	keyPrefix: process.env.REDIS_PREFIX,
@@ -36,6 +36,7 @@ class Redis {
 
 	async get(key: string): Promise<unknown> {
 		const data = await this.redis.get(key);
+		if (!data) return null;
 		try {
 			return JSON.parse(data);
 		} catch {

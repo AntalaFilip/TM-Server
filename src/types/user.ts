@@ -11,12 +11,15 @@ interface UserOptions extends UserPublicData {
 	realmId: null;
 }
 
-interface UserPublicData extends ResourceOptions {
-	id?: string;
+type UserConstructorOptions = Omit<UserOptions, "id"> & { id?: string };
+
+interface UserPublicData extends Omit<ResourceOptions, "realmId"> {
+	id: string;
 	name: string;
 	username: string;
 	disabled?: boolean;
 	admin?: boolean;
+	realmId: null;
 	permissions?: UserPermissionsMetadata;
 	dispatching?: { realm: string; station: string };
 	controlling?: { realm: string; locomotive: string }[];
@@ -52,12 +55,7 @@ interface UserSettings {
 	theme?: string;
 }
 
-class User extends Resource {
-	public readonly realmId: null;
-	public override get realm(): null {
-		return null;
-	}
-
+class User extends Resource<UserManager> {
 	private _name: string;
 	public get name() {
 		return this._name;
@@ -76,11 +74,11 @@ class User extends Resource {
 		this.propertyChange("username", this.username);
 	}
 
-	private _passwordHash: string;
+	private _passwordHash?: string;
 	private get passwordHash() {
 		return this._passwordHash;
 	}
-	private set passwordHash(hash: string) {
+	private set passwordHash(hash: string | undefined) {
 		this._passwordHash = hash;
 		this.save();
 	}
@@ -138,7 +136,7 @@ class User extends Resource {
 		return BaseManager.get(`users`) as UserManager;
 	}
 
-	constructor(options: UserOptions) {
+	constructor(options: UserConstructorOptions) {
 		options.managerId = "users";
 		super("user", options);
 
@@ -151,7 +149,7 @@ class User extends Resource {
 			realm: new Map(options.permissions?.realm),
 		};
 		this.settings = options.settings ?? {};
-		this.disabled = options.disabled ?? false;
+		this._disabled = options.disabled ?? false;
 	}
 
 	metadata(): UserOptions {
@@ -230,7 +228,7 @@ class User extends Resource {
 						realm: this.dispatching.realmId,
 						station: this.dispatching.id,
 				  }
-				: null,
+				: undefined,
 			controlling: this.controlling.map((c) => ({
 				realm: c.realmId,
 				locomotive: c.id,
@@ -256,8 +254,10 @@ class User extends Resource {
 			perm === null ||
 			(this.permissions.global & PermissionMap[perm]) ===
 				PermissionMap[perm] ||
-			(this.permissions.realm.get(realm?.id) & PermissionMap[perm]) ===
-				PermissionMap[perm] ||
+			(realm &&
+				((this.permissions.realm.get(realm.id) ?? 0) &
+					PermissionMap[perm]) ===
+					PermissionMap[perm]) ||
 			realm?.owner === this ||
 			this.admin
 		);
@@ -299,4 +299,5 @@ export {
 	UserPermissions,
 	UserPermissionsMetadata,
 	Permission,
+	UserConstructorOptions
 };

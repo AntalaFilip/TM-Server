@@ -22,11 +22,16 @@ async function login(client: Client, req: Request, res: Response) {
 		});
 
 	const user = client.userManager.users.find((u) => u.username === username);
-	const valid = user?.verifyPassword(password ?? '');
+	if (!user)
+		return res.status(401).send({
+			message: `Invalid user`,
+			error: { code: `EBADAUTH`, extension: `user` },
+		});
+	const valid = user?.verifyPassword(password ?? "");
 	if (!valid)
 		return res.status(401).send({
-			message: `Invalid username or password`,
-			error: { code: `EBADAUTH` },
+			message: `Invalid password`,
+			error: { code: `EBADAUTH`, extension: `password` },
 		});
 	if (user.disabled)
 		return res.status(401).send({

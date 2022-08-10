@@ -37,7 +37,7 @@ function checkMovableLocationMetaExistence(
 			Boolean(
 				realm.stationManager
 					.get(toCheck.stationId)
-					.tracks.find((t) => t.id === toCheck.trackId)
+					?.tracks.find((t) => t.id === toCheck.trackId)
 			))
 	);
 }
@@ -51,14 +51,11 @@ interface MovableOptions extends ResourceOptions {
 	currentLocation?: MovableLocationMeta;
 	model: string;
 	name?: string;
-	type?: MovableType;
+	type: MovableType;
 	owner?: User;
 }
 
 abstract class Movable extends Resource {
-	public readonly id: string;
-	public readonly realmId: string;
-
 	public override readonly type: MovableType;
 
 	private _model: string;
@@ -76,7 +73,7 @@ abstract class Movable extends Resource {
 	public get maxSpeed() {
 		return this._maxSpeed;
 	}
-	private set maxSpeed(speed: number) {
+	private set maxSpeed(speed: number | undefined) {
 		this._maxSpeed = speed;
 		this.propertyChange("maxSpeed", this.maxSpeed);
 	}
@@ -86,7 +83,7 @@ abstract class Movable extends Resource {
 	public get length() {
 		return this._length;
 	}
-	private set length(length: number) {
+	private set length(length: number | undefined) {
 		this._length = length;
 		this.propertyChange("length", this.length);
 	}
@@ -106,52 +103,60 @@ abstract class Movable extends Resource {
 	public get currentLocation() {
 		return this._currentLocation;
 	}
-	private set currentLocation(location: MovableLocation) {
+	private set currentLocation(location: MovableLocation | undefined) {
 		// there can't be a track without a station as tracks are tied to stations :)
-		if (!location.station && location.track) location.track = null;
+		if (location && !location.station && location.track)
+			location.track = undefined;
 
 		this._currentLocation = location;
 		this.propertyChange("currentLocation", this.currentLocation);
 	}
 
-	private _name: string;
+	private _name?: string;
 	public get name() {
 		return this._name;
 	}
-	public set name(name: string) {
+	public set name(name: string | undefined) {
 		this._name = name;
 		this.propertyChange("name", this.name);
 	}
 
-	private _ownerId: string;
+	private _ownerId?: string;
 	public get ownerId() {
 		return this._ownerId;
 	}
-	private set ownerId(id: string) {
+	private set ownerId(id: string | undefined) {
 		this._ownerId = id;
 		this.propertyChange("ownerId", id);
 	}
-	public get owner() {
-		return this.realm.client.userManager.get(this.ownerId);
+	public get owner(): User | undefined {
+		return this.ownerId
+			? this.realm.client.userManager.get(this.ownerId)
+			: undefined;
 	}
 
-	abstract currentTrain: Train;
+	abstract currentTrain?: Train;
 
 	constructor(type: MovableType, options: MovableOptions) {
 		super(type, options);
+		this.type = options.type;
 
 		this._model = options.model;
 		this._maxSpeed = options.maxSpeed;
 		this._length = options.length;
 		this._couplerType = options.couplerType;
+		this._ownerId = options.owner?.id;
 
-		const curSt = this.realm.stationManager.get(
-			options.currentLocation?.stationId
-		);
-		this._currentLocation = curSt && {
-			station: curSt,
-			track: curSt.tracks.get(options.currentLocation?.trackId),
-		};
+		const curSt =
+			options.currentLocation &&
+			this.realm.stationManager.get(options.currentLocation.stationId);
+		this._currentLocation = curSt &&
+			options.currentLocation && {
+				station: curSt,
+				track: options.currentLocation.trackId
+					? curSt.tracks.get(options.currentLocation.trackId)
+					: undefined,
+			};
 
 		this._name = options.name;
 	}
@@ -183,13 +188,14 @@ abstract class Movable extends Resource {
 			this.couplerType = data.couplerType;
 			modified = true;
 		}
-		if (
-			typeof data.currentStationId === "string" &&
-			this.realm.stationManager.get(data.currentStationId)
-		) {
+		const stat =
+			typeof data.currentStationId === "string"
+				? this.realm.stationManager.get(data.currentStationId)
+				: undefined;
+		if (stat) {
 			this.currentLocation = {
 				...this.currentLocation,
-				station: this.realm.stationManager.get(data.currentStationId),
+				station: stat,
 			};
 			modified = true;
 		}

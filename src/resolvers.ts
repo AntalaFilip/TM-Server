@@ -114,7 +114,8 @@ function createGQLResolvers(client: Client) {
 			},
 			timetables: async (_p: never, a: { realm: string }) => {
 				return Array.from(
-					client.get(a.realm)?.timetableManager.timetables.values()
+					client.get(a.realm)?.timetableManager.timetables.values() ??
+						[]
 				);
 			},
 			timetable: async (_p: never, a: { realm: string; id: string }) => {

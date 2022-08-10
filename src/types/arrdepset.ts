@@ -1,5 +1,6 @@
 import ResourceManager from "../managers/ResourceManager";
 import TimetableManager from "../managers/TimetableManager";
+import TMError from "./tmerror";
 
 interface ArrDepSetOptions {
 	no: number;
@@ -15,11 +16,15 @@ class ArrDepSet {
 	}
 	public readonly timetableId: string;
 	public get timetable() {
-		return this.manager.get(this.timetableId);
+		const tt = this.manager.get(this.timetableId);
+		if (!tt) throw new TMError(`EINTERNAL`);
+		return tt;
 	}
 	public readonly entryId: string;
 	public get entry() {
-		return this.timetable.entries.find((e) => e.id === this.entryId);
+		const entry = this.timetable.entries.find((e) => e.id === this.entryId);
+		if (!entry) throw new Error("Invalid timetable Entry");
+		return entry;
 	}
 
 	public get arrival() {
@@ -28,7 +33,7 @@ class ArrDepSet {
 		);
 	}
 	public get departure() {
-		if (this.entry.duration < 0) return null;
+		if (!this.entry || this.entry.duration < 0) return null;
 		return new Date(this.arrival.getTime() + this.entry.duration);
 	}
 	public readonly no: number;

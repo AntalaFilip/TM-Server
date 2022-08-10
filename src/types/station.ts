@@ -46,20 +46,20 @@ class Station extends Resource {
 		this.propertyChange(`stationType`, type);
 	}
 
-	private _dispatcher: User;
+	private _dispatcher?: User;
 	public get dispatcher() {
 		return this._dispatcher;
 	}
-	private set dispatcher(disp: User) {
+	private set dispatcher(disp: User | undefined) {
 		this._dispatcher = disp;
 		const trueTimestamp = this.realm.timeManager.trueMs;
 		this.manager.db.redis.xadd(
 			this.manager.key(`${this.id}:dispatchers`),
 			"*",
 			"id",
-			disp?.id,
+			disp?.id ?? "",
 			"type",
-			disp?.type,
+			disp?.type ?? "",
 			"time",
 			trueTimestamp
 		);
@@ -174,11 +174,12 @@ class Station extends Resource {
 		return true;
 	}
 
-	setDispatcher(disp: User | null, actor: User) {
+	setDispatcher(disp: User | undefined, actor: User) {
 		const self = actor.hasPermission("assign self");
 		const others = actor.hasPermission("assign users");
 		if (
-			((disp === actor || (disp == null && this.dispatcher === actor)) &&
+			((disp === actor ||
+				(disp == undefined && this.dispatcher === actor)) &&
 				!self &&
 				!others) ||
 			!others

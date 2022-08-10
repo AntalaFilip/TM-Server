@@ -25,7 +25,7 @@ class StationManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): Station {
+	get(id: string): Station | undefined {
 		return this.stations.get(id);
 	}
 	getOne(id: string) {
@@ -57,7 +57,7 @@ class StationManager extends ResourceManager {
 		return resource;
 	}
 
-	async fromResourceIdentifier(fullId: string): Promise<Station> {
+	async fromResourceIdentifier(fullId: string): Promise<Station | undefined> {
 		if (!(await this.db.redis.exists(fullId, `${fullId}:tracks`))) return;
 
 		const stationMeta = (await this.db.get(fullId)) as StationOptions;
@@ -86,6 +86,26 @@ class StationManager extends ResourceManager {
 					.map(([_k, v]) => JSON.parse(v) as StationTrackOptions)
 					.map((meta) => new StationTrack(meta));
 				v.tracks = tracks;
+
+				const dispd = await this.db.redis.xrevrange(
+					`${this.key(k)}:dispatchers`,
+					"+",
+					"-",
+					"COUNT",
+					1
+				);
+				const lastDisp = dispd[0];
+				if (lastDisp && lastDisp[1]) {
+					const id = lastDisp[1][1];
+					const type = lastDisp[1][3];
+					if (type === "user" && id) {
+						const u = this.client.userManager.get(id);
+						if (u) {
+							v.dispatcher = u;
+						}
+					}
+				}
+
 				await this.create(v);
 			} catch (err) {
 				this.logger.warn(`Malformed station data @ ${r[0]}`);

@@ -22,7 +22,7 @@ class TrainManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): Train {
+	get(id: string): Train | undefined {
 		return this.trains.get(id);
 	}
 	getOne(id: string) {
@@ -32,7 +32,7 @@ class TrainManager extends ResourceManager {
 		return this.trains.map((t) => t.fullMetadata());
 	}
 
-	async fromResourceIdentifier(fullId: string): Promise<Train> {
+	async fromResourceIdentifier(fullId: string): Promise<Train | undefined> {
 		if (!(await this.db.redis.exists(fullId))) return;
 
 		const trainMeta = (await this.db.get(fullId)) as TrainOptions;
@@ -47,7 +47,8 @@ class TrainManager extends ResourceManager {
 		if (!(resource instanceof Train)) {
 			resource = new Train(resource);
 		}
-		if (!(resource instanceof Train)) return;
+		if (!(resource instanceof Train))
+			throw new TMError(`EINTERNAL`, `Something went wrong`);
 
 		if (this.trains.has(resource.id))
 			throw new Error(`This Train is already created!`);
@@ -67,24 +68,26 @@ class TrainManager extends ResourceManager {
 		for (const r of arr) {
 			try {
 				const v = JSON.parse(r[1]) as TrainOptionsMetadata;
-				const locStat = this.realm.stationManager.get(
-					v.location?.stationId
-				);
-				const location = v.location
-					? {
-							station: locStat,
-							track: v.location.trackId
-								? locStat.tracks.get(v.location.trackId)
-								: null,
-					  }
-					: null;
+				const locStat =
+					v.location &&
+					this.realm.stationManager.get(v.location.stationId);
+				const location =
+					locStat && v.location
+						? {
+								station: locStat,
+								track: v.location.trackId
+									? locStat.tracks.get(v.location.trackId)
+									: undefined,
+						  }
+						: undefined;
 
-				const locomotive = this.realm.movableManager.getLoco(
-					v.locomotiveId
-				);
+				const locomotive = v.locomotiveId
+					? this.realm.movableManager.getLoco(v.locomotiveId)
+					: undefined;
+
 				const trainSets = v.trainSetIds
 					?.map((s) => this.realm.trainSetManager.get(s))
-					.filter((s) => s instanceof TrainSet);
+					.filter((s) => s instanceof TrainSet) as TrainSet[] | undefined;
 
 				if (trainSets?.length !== v.trainSetIds?.length)
 					throw new TMError(

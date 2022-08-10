@@ -2,6 +2,8 @@ import Collection from "@discordjs/collection";
 import ArrDepSet from "./arrdepset";
 import Resource, { ResourceOptions } from "./resource";
 import Timetable from "./timetable";
+import TMError from "./tmerror";
+import TrainSet from "./trainset";
 
 interface TimetableEntryOptions extends ResourceOptions {
 	trainId: string;
@@ -12,18 +14,21 @@ interface TimetableEntryOptions extends ResourceOptions {
 	start: Date;
 	repeats: number;
 	duration: number;
-	usedFrom?: Date;
+	usedFrom: Date;
 	usedTill?: Date;
 	current?: ArrDepSet;
 	adsCount?: number;
 	cancelledAds?: number[];
 	delayedAds?: [number, number][];
+	ttId: string;
 }
 
 class TimetableEntry extends Resource {
 	public readonly ttId: string;
 	public get timetable(): Timetable {
-		return this.realm.timetableManager.get(this.ttId);
+		const tt = this.realm.timetableManager.get(this.ttId);
+		if (!tt) throw new TMError(`EINTERNAL`);
+		return tt;
 	}
 
 	private _trainId: string;
@@ -35,7 +40,9 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`trainId`, id);
 	}
 	public get train() {
-		return this.realm.trainManager.get(this.trainId);
+		const t = this.realm.trainManager.get(this.trainId);
+		if (!t) throw new TMError(`EINTERNAL`);
+		return t;
 	}
 
 	private _stationId: string;
@@ -47,7 +54,9 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`stationId`, id);
 	}
 	public get station() {
-		return this.realm.stationManager.get(this.stationId);
+		const s = this.realm.stationManager.get(this.stationId);
+		if (!s) throw new TMError(`EINTERNAL`);
+		return s;
 	}
 
 	private _trackId: string;
@@ -59,12 +68,16 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`trackId`, id);
 	}
 	public get track() {
-		return this.station.tracks.get(this.trackId);
+		const t = this.station.tracks.get(this.trackId);
+		if (!t) throw new TMError(`EINTERNAL`);
+		return t;
 	}
 
 	public readonly setIds: string[];
 	public get sets() {
-		return this.setIds.map((id) => this.realm.trainSetManager.get(id));
+		return this.setIds
+			.map((id) => this.realm.trainSetManager.get(id))
+			.filter((t) => t instanceof TrainSet) as TrainSet[];
 	}
 
 	private _locomotiveId: string;
@@ -76,7 +89,9 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`locomotiveId`, id);
 	}
 	public get locomotive() {
-		return this.realm.movableManager.getLoco(this.locomotiveId);
+		const l = this.realm.movableManager.getLoco(this.locomotiveId);
+		if (!l) throw new TMError(`EINTERNAL`);
+		return l;
 	}
 
 	private _usedFrom: Date;
@@ -88,11 +103,11 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`usedFrom`, date);
 	}
 
-	private _usedTill: Date;
+	private _usedTill?: Date;
 	public get usedTill() {
 		return this._usedTill;
 	}
-	private set usedTill(date: Date) {
+	private set usedTill(date: Date | undefined) {
 		this._usedTill = date;
 		this.propertyChange(`usedTill`, date);
 	}
@@ -160,6 +175,7 @@ class TimetableEntry extends Resource {
 	constructor(options: TimetableEntryOptions) {
 		super(`timetableentry`, options);
 
+		this.ttId = options.ttId;
 		this._trainId = options.trainId;
 		this._stationId = options.stationId;
 		this._trackId = options.trackId;
@@ -213,6 +229,7 @@ class TimetableEntry extends Resource {
 			adsCount: this.adsCount,
 			delayedAds: Array.from(this.delayedAds.entries()),
 			cancelledAds: this.cancelledAds,
+			ttId: this.ttId,
 		};
 	}
 
@@ -229,7 +246,7 @@ class TimetableEntry extends Resource {
 			locomotive: this.locomotive?.publicMetadata(),
 			station: this.station?.publicMetadata(),
 			track: this.track?.publicMetadata(),
-			train: this.train.publicMetadata(),
+			train: this.train?.publicMetadata(),
 			sets: this.sets.map((s) => s.publicMetadata()),
 			times: this.times,
 		};

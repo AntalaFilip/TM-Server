@@ -73,7 +73,7 @@ async function main() {
 			?.slice(11);
 		if (!auth || !auth.startsWith("Bearer ")) return;
 		const data = verifyToken(auth.split(" ")[1]);
-		if (!data) socket.disconnect();
+		if (!data || typeof data.userId != "string") return socket.disconnect();
 
 		socket.data.user = client.userManager.get(data.userId);
 	});
@@ -85,7 +85,7 @@ async function main() {
 	if (typeof addr === "string") throw new Error("");
 	logger.info(
 		`TrainManager ready and started!`,
-		`Listening on ${addr.address}:${addr.port}`
+		`Listening on ${addr?.address}:${addr?.port}`
 	);
 
 	return { client, apollo };

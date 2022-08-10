@@ -39,14 +39,14 @@ class StationTrack extends Resource {
 	public get length() {
 		return this._length;
 	}
-	private set length(length: number) {
+	private set length(length: number | undefined) {
 		this._length = length;
 		this.propertyChange("length", this.length);
 	}
 
-	public get currentTrain(): Train {
+	public get currentTrain(): Train | undefined {
 		return this.realm.trainManager.trains.find(
-			(t) => t.location.track === this
+			(t) => t.location?.track === this
 		);
 	}
 

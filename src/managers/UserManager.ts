@@ -1,12 +1,12 @@
 import Client from "../types/client";
 import BaseManager from "../managers/BaseManager";
 import { ResourceData } from "./ResourceManager";
-import User, { UserOptions } from "../types/user";
+import User, { UserConstructorOptions, UserOptions } from "../types/user";
 import Collection from "@discordjs/collection";
 import crypto from "crypto";
 import { ForbiddenError } from "apollo-server-core";
 
-class UserManager extends BaseManager implements ResourceData {
+class UserManager extends BaseManager implements ResourceData<UserManager> {
 	public readonly users: Collection<string, User>;
 
 	public readonly ready: Promise<void>;
@@ -57,7 +57,7 @@ class UserManager extends BaseManager implements ResourceData {
 		return this.users.map((u) => u.publicMetadata());
 	}
 
-	async create(resource: User | UserOptions, actor?: User): Promise<User> {
+	async create(resource: User | UserConstructorOptions, actor?: User): Promise<User> {
 		if (actor && !actor.hasPermission(`manage users`))
 			throw new ForbiddenError(`No permission!`, {
 				tmCode: `ENOPERM`,
@@ -76,8 +76,9 @@ class UserManager extends BaseManager implements ResourceData {
 		return resource;
 	}
 
-	async fromResourceIdentifier(id: string): Promise<User> {
+	async fromResourceIdentifier(id: string): Promise<User | undefined> {
 		const userData = await this.db.redis.hget("users", id);
+		if (!userData) return;
 		const userMeta = JSON.parse(userData) as UserOptions;
 
 		return new User(userMeta);

@@ -26,7 +26,7 @@ class TrainSetManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): TrainSet {
+	get(id: string): TrainSet | undefined {
 		return this.trainsets.get(id);
 	}
 	getOne(id: string) {
@@ -46,7 +46,7 @@ class TrainSetManager extends ResourceManager {
 		if (!(resource instanceof TrainSet)) {
 			resource = new TrainSet(resource);
 		}
-		if (!(resource instanceof TrainSet)) return;
+		if (!(resource instanceof TrainSet)) throw new TMError(`EINTERNAL`);
 
 		if (this.trainsets.has(resource.id))
 			throw new Error(`This TrainSet is already created!`);
@@ -56,10 +56,11 @@ class TrainSetManager extends ResourceManager {
 		return resource;
 	}
 
-	async fromResourceIdentifier(id: string): Promise<TrainSet> {
+	async fromResourceIdentifier(id: string): Promise<TrainSet | undefined> {
 		if (!(await this.db.redis.hexists(this.id, id))) return;
 
 		const setData = await this.db.redis.hget(this.id, id);
+		if (!setData) throw new TMError(`EDBERROR`);
 		const setMeta = JSON.parse(setData) as TrainSetOptions;
 
 		return new TrainSet(setMeta);

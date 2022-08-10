@@ -10,6 +10,7 @@ import createIndexRouter from "../routes";
 import User from "./user";
 import { ForbiddenError } from "apollo-server-core";
 import TMLogger from "../helpers/logger";
+import TMError from "./tmerror";
 
 interface ClientOptions {
 	io: SIOServer;
@@ -17,7 +18,7 @@ interface ClientOptions {
 	http: http.Server;
 }
 
-class Client implements ResourceData {
+class Client implements ResourceData<null> {
 	public readonly io: SIOServer;
 	public readonly express: Application;
 	public readonly http: http.Server;
@@ -43,7 +44,7 @@ class Client implements ResourceData {
 			this.userManager.ready.then(() => {
 				this.createAllFromStore().then(() => {
 					const httpRouter = createIndexRouter(this);
-					this.express.use('/api', httpRouter);
+					this.express.use("/api", httpRouter);
 
 					this.logger.info(
 						`Client ready; ${this.realms.size} Realms active`
@@ -54,7 +55,7 @@ class Client implements ResourceData {
 		});
 	}
 
-	get(id: string): Realm {
+	get(id: string): Realm | undefined {
 		return this.realms.get(id);
 	}
 	getOne(id: string) {
@@ -88,7 +89,7 @@ class Client implements ResourceData {
 		if (!(resource instanceof Realm)) {
 			resource = new Realm(this, resource);
 		}
-		if (!(resource instanceof Realm)) return;
+		if (!(resource instanceof Realm)) throw new TMError("EINTERNAL");
 
 		await resource.ready;
 
@@ -99,7 +100,7 @@ class Client implements ResourceData {
 	/** Creates a Realm from a resource identifier (redis key/resource id) */
 	async fromResourceIdentifier(id: string): Promise<Realm> {
 		const realmData = await this.db.redis.hget("realms", id);
-		if (!realmData) return;
+		if (!realmData) throw new TMError(`EINTERNAL`);
 
 		const realmMeta = JSON.parse(realmData) as RealmOptions;
 

@@ -32,7 +32,7 @@ class TimeManager extends BaseManager {
 	public readonly ready: Promise<void>;
 	public override readonly logger: TMLogger;
 
-	private _restricted: boolean;
+	private _restricted = true;
 	public get restricted() {
 		return this._restricted;
 	}
@@ -53,7 +53,7 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _startPoint: number;
+	private _startPoint = NaN;
 	/** The starting point of true realm time in milliseconds */
 	public get startPoint() {
 		return this._startPoint;
@@ -64,7 +64,7 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _speedModifier: number;
+	private _speedModifier = NaN;
 	/** The speed modifier of the true realm time opposed to real time */
 	public get speedModifier() {
 		return this._speedModifier;
@@ -76,13 +76,13 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _elapsed: number;
+	private _elapsed = NaN;
 	/** Time of the last save */
 	public get elapsed() {
 		return this._elapsed;
 	}
 
-	private _trueElapsed: number;
+	private _trueElapsed = NaN;
 	/** True elapsed time (TrueMS) at last data save */
 	public get trueElapsed() {
 		return this._trueElapsed;
@@ -141,11 +141,11 @@ class TimeManager extends BaseManager {
 					}
 				}
 
-				this._restricted = options.restricted ?? false;
+				this._restricted = options?.restricted ?? false;
 				this._startPoint = options?.startPoint ?? 0;
 				// max allowed speed is 100x
 				this._speedModifier =
-					(options?.speedModifier > 100
+					((options?.speedModifier ?? 1) > 100
 						? 100
 						: options?.speedModifier) ?? 1;
 				this._elapsed = options?.elapsed ?? Date.now();
