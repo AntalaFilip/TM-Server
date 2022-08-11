@@ -3,6 +3,7 @@ import StationTrack, { StationTrackOptions } from "./track";
 import Collection from "@discordjs/collection";
 import User from "./user";
 import { ForbiddenError } from "apollo-server-core";
+import TMError from "./tmerror";
 
 type StationType = "STATION" | "STOP";
 
@@ -187,6 +188,14 @@ class Station extends Resource {
 			throw new ForbiddenError(`No permission`, {
 				permission: "assign self XOR assign users",
 			});
+
+		const already = disp?.dispatching;
+		if (already)
+			throw new TMError(
+				`EALREADYDISPATCHING`,
+				`User is already dispatching in another station!`,
+				{ station: already.id }
+			);
 
 		if (disp === this.dispatcher) return;
 		this.dispatcher = disp;
