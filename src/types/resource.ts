@@ -51,7 +51,7 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 	}
 
 	/**
-	 * Sends all Sockets connected to the Realm namespace a `propertyChange` event and saves the Resource.
+	 * Sends a `propertyChange` event to either the realm namespace, or globally, if no namespace exists.
 	 * @param prop The property name
 	 * @param value The value of the property
 	 * @param noSave Whether to skip saving the Resource
