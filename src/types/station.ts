@@ -64,7 +64,7 @@ class Station extends Resource {
 			"time",
 			trueTimestamp
 		);
-		this.propertyChange(`dispatcher`, disp);
+		this.propertyChange(`dispatcherId`, disp?.id);
 	}
 
 	public get trains() {
