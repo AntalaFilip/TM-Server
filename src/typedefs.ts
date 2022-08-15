@@ -325,6 +325,7 @@ const typeDefs = gql`
 		permissions: UserPermissions!
 		controlling: [Locomotive]!
 		owning: [Realm]!
+		dispatching: Station
 	}
 	input UserInput {
 		name: String!
