@@ -539,7 +539,7 @@ function createGQLResolvers(client: Client) {
 				return await realm.movableManager.create(
 					{
 						...a.input,
-						type: "locomotive",
+						type: "LOCOMOTIVE",
 						realmId: realm.id,
 						managerId: realm.movableManager.id,
 					},
@@ -620,7 +620,7 @@ function createGQLResolvers(client: Client) {
 				return await realm.movableManager.create(
 					{
 						...a.input,
-						type: "wagon",
+						type: "WAGON",
 						realmId: realm.id,
 						managerId: realm.movableManager.id,
 					},
