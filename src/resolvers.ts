@@ -526,6 +526,15 @@ function createGQLResolvers(client: Client) {
 
 					a.input.controller = controller;
 				}
+				if (a.input.owner) {
+					const owner = realm.client.userManager.get(a.input.owner);
+					if (!owner)
+						throw new UserInputError(`Invalid User ID!`, {
+							tmCode: `EBADPARAM`,
+							extension: `OWNER`,
+						});
+					a.input.owner = owner;
+				}
 
 				return await realm.movableManager.create(
 					{
@@ -596,6 +605,16 @@ function createGQLResolvers(client: Client) {
 						});
 
 					a.input.location = { station, track };
+				}
+
+				if (a.input.owner) {
+					const owner = realm.client.userManager.get(a.input.owner);
+					if (!owner)
+						throw new UserInputError(`Invalid User ID!`, {
+							tmCode: `EBADPARAM`,
+							extension: `OWNER`,
+						});
+					a.input.owner = owner;
 				}
 
 				return await realm.movableManager.create(

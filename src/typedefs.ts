@@ -235,6 +235,7 @@ const typeDefs = gql`
 		maxSpeed: Int
 		currentLocation: MovableLocationInput
 		controller: ID
+		owner: ID
 	}
 
 	type Wagon implements Movable {
@@ -259,6 +260,7 @@ const typeDefs = gql`
 		length: Int
 		maxSpeed: Int
 		currentLocation: MovableLocationInput
+		owner: ID
 	}
 	enum WagonType {
 		PASSENGER
