@@ -29,6 +29,12 @@ function createGQLResolvers(client: Client) {
 		Movable: {
 			__resolveType: (obj: Movable) => firstCapital(obj.type),
 		},
+		User: {
+			email: (parent: User, _a: never, ctx: GQLContext) =>
+				ctx.user?.hasPermission("manage users") || ctx.user === parent
+					? parent.email
+					: null,
+		},
 		TrainSet: {
 			trains: (parent: TrainSet) =>
 				parent.realm.trainManager.trains.filter((t) =>
