@@ -26,7 +26,7 @@ function createAuthRouter(client: Client) {
 			if (!req.auth) return res.status(500).send();
 			const data = req.auth.publicMetadata();
 
-			return res.send({ user: data });
+			return res.send({ user: { ...data, email: req.auth.email } });
 		}
 	);
 
