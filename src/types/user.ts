@@ -4,18 +4,23 @@ import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
 import Realm from "./realm";
 import Locomotive from "./locomotive";
+import crypto from "crypto";
 
 interface UserOptions extends UserPublicData {
 	passwordHash?: string;
 	settings?: UserSettings;
 	realmId: null;
+	email: string;
 }
 
-type UserConstructorOptions = Omit<UserOptions, "id"> & { id?: string };
+type UserConstructorOptions = Omit<UserOptions, "id" | "emailMD5"> & {
+	id?: string;
+};
 
 interface UserPublicData extends Omit<ResourceOptions, "realmId"> {
 	id: string;
 	name: string;
+	emailMD5: string;
 	username: string;
 	disabled?: boolean;
 	admin?: boolean;
@@ -72,6 +77,19 @@ class User extends Resource<UserManager> {
 	private set username(username: string) {
 		this._username = username;
 		this.propertyChange("username", this.username);
+	}
+
+	private _email: string;
+	public get email() {
+		return this._email;
+	}
+	private set email(email: string) {
+		this._email = email;
+		this.propertyChange("emailMD5", this.emailMD5);
+	}
+
+	public get emailMD5() {
+		return crypto.createHash("md5").update(this.email).digest("hex");
 	}
 
 	private _passwordHash?: string;
@@ -142,6 +160,7 @@ class User extends Resource<UserManager> {
 
 		this._name = options.name;
 		this._username = options.username;
+		this._email = options.email;
 		this._passwordHash = options.passwordHash;
 		this._admin = options.admin ?? false;
 		this.permissions = {
@@ -157,6 +176,8 @@ class User extends Resource<UserManager> {
 			id: this.id,
 			name: this.name,
 			username: this.username,
+			email: this.email,
+			emailMD5: this.emailMD5,
 			managerId: this.managerId,
 			realmId: null,
 			passwordHash: this.passwordHash,
@@ -217,6 +238,7 @@ class User extends Resource<UserManager> {
 		return {
 			name: this.name,
 			username: this.username,
+			emailMD5: this.emailMD5,
 			admin: this.admin,
 			disabled: this.disabled,
 			id: this.id,
@@ -299,5 +321,5 @@ export {
 	UserPermissions,
 	UserPermissionsMetadata,
 	Permission,
-	UserConstructorOptions
+	UserConstructorOptions,
 };

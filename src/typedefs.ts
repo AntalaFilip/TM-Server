@@ -322,6 +322,7 @@ const typeDefs = gql`
 		id: ID!
 		name: String!
 		username: String!
+		emailMD5: String!
 		disabled: Boolean!
 		admin: Boolean!
 		permissions: UserPermissions!
@@ -332,6 +333,7 @@ const typeDefs = gql`
 	input UserInput {
 		name: String!
 		username: String!
+		email: String!
 		password: String
 		admin: Boolean
 		permissions: UserPermissionsInput

@@ -27,6 +27,7 @@ class UserManager extends BaseManager implements ResourceData<UserManager> {
 					const user = await this.create({
 						name: "Administrator",
 						username: "administrator",
+						email: "root@ahst.sk",
 						realmId: null,
 						managerId: this.id,
 						passwordHash: User.hashPassword(pwd),
@@ -57,7 +58,10 @@ class UserManager extends BaseManager implements ResourceData<UserManager> {
 		return this.users.map((u) => u.publicMetadata());
 	}
 
-	async create(resource: User | UserConstructorOptions, actor?: User): Promise<User> {
+	async create(
+		resource: User | UserConstructorOptions,
+		actor?: User
+	): Promise<User> {
 		if (actor && !actor.hasPermission(`manage users`))
 			throw new ForbiddenError(`No permission!`, {
 				tmCode: `ENOPERM`,

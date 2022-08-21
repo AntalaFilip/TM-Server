@@ -15,8 +15,8 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 	const data = req.body;
 	if (!data) return res.status(400).send("Missing body!");
 
-	const { username, password, name } = data;
-	if (!username || !password || !name)
+	const { username, password, name, email } = data;
+	if (!username || !password || !name || !email)
 		return res.status(400).send({
 			message: `Missing data!`,
 			error: { code: "EMISSINGDATA" },
@@ -49,6 +49,7 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 		passwordHash: User.hashPassword(password),
 		managerId: client.userManager.id,
 		realmId: null,
+		email
 	});
 	await client.db.redis.xadd(`audit`, "*", "create user", authUser.id);
 
