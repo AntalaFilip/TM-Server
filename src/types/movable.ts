@@ -52,7 +52,7 @@ interface MovableOptions extends ResourceOptions {
 	model: string;
 	name?: string;
 	type: MovableType;
-	owner?: User;
+	ownerId?: string;
 }
 
 abstract class Movable extends Resource {
@@ -145,7 +145,7 @@ abstract class Movable extends Resource {
 		this._maxSpeed = options.maxSpeed;
 		this._length = options.length;
 		this._couplerType = options.couplerType;
-		this._ownerId = options.owner?.id;
+		this._ownerId = options.ownerId;
 
 		const curSt =
 			options.currentLocation &&
