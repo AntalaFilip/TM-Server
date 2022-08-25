@@ -175,21 +175,28 @@ class Station extends Resource {
 		return true;
 	}
 
-	setDispatcher(disp: User | undefined, actor: User) {
+	setDispatcher(newDisp: User | undefined, actor: User) {
 		const self = actor.hasPermission("assign self");
 		const others = actor.hasPermission("assign users");
+		// Oh this mess... and it should've been so easy
 		if (
-			((disp === actor ||
-				(disp == undefined && this.dispatcher === actor)) &&
-				!self &&
-				!others) ||
-			!others
+			// Negate the result, as it's the other way round
+			!(
+				// If is self (start), or is self (end) and has permissions
+				(
+					((newDisp === actor ||
+						(newDisp == undefined && this.dispatcher === actor)) &&
+						(self || others)) ||
+					// Or just has permissions to modify others
+					others
+				)
+			)
 		)
 			throw new ForbiddenError(`No permission`, {
 				permission: "assign self XOR assign users",
 			});
 
-		const already = disp?.dispatching;
+		const already = newDisp?.dispatching;
 		if (already)
 			throw new TMError(
 				`EALREADYDISPATCHING`,
@@ -197,8 +204,8 @@ class Station extends Resource {
 				{ station: already.id }
 			);
 
-		if (disp === this.dispatcher) return;
-		this.dispatcher = disp;
+		if (newDisp === this.dispatcher) return;
+		this.dispatcher = newDisp;
 
 		return true;
 	}
