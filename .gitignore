@@ -4,5 +4,6 @@ certs
 
 config.json
 
-.env*
-*.env
+.env
+.env.test
+.env.dev
