@@ -19,6 +19,7 @@ class TrainSet extends Resource {
 	}
 	private set name(name: string) {
 		this._name = name;
+		this.propertyChange("name", this.name);
 	}
 
 	public readonly components: Movable[];
@@ -34,7 +35,11 @@ class TrainSet extends Resource {
 		this.components.length = 0;
 		this.components.push(...components);
 
-		if (!noSave) await this.save();
+		return this.propertyChange(
+			"componentIds",
+			this.components.map((c) => c.id),
+			noSave
+		);
 	}
 
 	async modify(data: Record<string, unknown>, actor: User) {
