@@ -203,6 +203,11 @@ class User extends Resource<UserManager> {
 			this.username = data.username;
 			modified = true;
 		}
+		// TODO: email checking?
+		if (typeof data.email === "string") {
+			this.email = data.email;
+			modified = true;
+		}
 		if (typeof data.password === "string") {
 			this.passwordHash = User.hashPassword(data.password);
 			modified = true;
