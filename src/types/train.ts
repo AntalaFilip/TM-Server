@@ -329,7 +329,8 @@ class Train extends Resource {
 		try {
 			return this.runStateChecks();
 		} catch (err) {
-			if (err instanceof TMError) return false;
+			if (err instanceof TMError && err.code.startsWith("ETRCHK"))
+				return false;
 			else throw err;
 		}
 	}
