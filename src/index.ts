@@ -18,7 +18,7 @@ env({ path: path.resolve(process.cwd(), envPath) });
 const logger = new TMLogger(`STARTUP`);
 
 async function main() {
-	logger.debug(`Creating HTTP and SIO services...`);
+	logger.debug(`Creating HTTP and WS/SIO services...`);
 	const app = Express();
 	app.use(cors({ origin: "http://localhost:3000" }));
 	const server = http.createServer(app);
