@@ -34,7 +34,7 @@
 		"cors": "^2.8.5",
 		"dotenv": "^16.0.1",
 		"express": "^4.18.1",
-		"graphql": "^16.5.0",
+		"graphql": "^16.6.0",
 		"graphql-type-long": "^0.1.1",
 		"ioredis": "^5.2.2",
 		"jsonwebtoken": "^9.0.0",
