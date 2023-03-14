@@ -1,6 +1,8 @@
-import Resource, { ResourceOptions } from "./resource";
-import Train from "./train";
-import User from "./user";
+import { SessionSpecificResourceDataOptions } from "../interfaces/SessionSpecificResourceDataOptions";
+import { SessionSpecificDataManager } from "../managers/SessionSpecificDataManager";
+import Resource, { ResourceOptions } from "./Resource";
+import { SessionSpecificStationTrackData } from "./SessionSpecificStationTrackData";
+import User from "./User";
 
 interface StationTrackOptions extends ResourceOptions {
 	stationId: string;
@@ -8,6 +10,15 @@ interface StationTrackOptions extends ResourceOptions {
 	short: string;
 	length?: number;
 	usedForParking: boolean;
+}
+
+class SessionSpecificStationTrackDataManager extends SessionSpecificDataManager<StationTrack> {
+	instantiate(
+		opts: SessionSpecificResourceDataOptions,
+		resource: StationTrack
+	): SessionSpecificStationTrackData {
+		return new SessionSpecificStationTrackData(opts, resource);
+	}
 }
 
 class StationTrack extends Resource {
@@ -44,12 +55,6 @@ class StationTrack extends Resource {
 		this.propertyChange("length", this.length);
 	}
 
-	public get currentTrain(): Train | undefined {
-		return this.realm.trainManager.trains.find(
-			(t) => t.location?.track === this
-		);
-	}
-
 	private _usedForParking: boolean;
 	public get usedForParking() {
 		return this._usedForParking;
@@ -59,6 +64,8 @@ class StationTrack extends Resource {
 		this.propertyChange("usedForParking", this.usedForParking);
 	}
 
+	public sessionData: SessionSpecificStationTrackDataManager;
+
 	constructor(options: StationTrackOptions) {
 		super("track", options);
 
@@ -67,6 +74,10 @@ class StationTrack extends Resource {
 		this._usedForParking = options.usedForParking;
 		this._name = options.name;
 		this._short = options.short ?? options.name;
+		this.sessionData = new SessionSpecificStationTrackDataManager(
+			this.realm,
+			this
+		);
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {

@@ -1,9 +1,8 @@
-import Realm from "./realm";
-import Resource, { ResourceOptions } from "./resource";
-import Station from "./station";
-import StationTrack from "./track";
-import Train from "./train";
-import User from "./user";
+import Realm from "./Realm";
+import Resource, { ResourceOptions } from "./Resource";
+import Station from "./Station";
+import StationTrack from "./Track";
+import User from "./User";
 
 type MovableLocation = {
 	station: Station;
@@ -48,14 +47,13 @@ interface MovableOptions extends ResourceOptions {
 	maxSpeed?: number;
 	length?: number;
 	couplerType: string;
-	currentLocation?: MovableLocationMeta;
 	model: string;
 	name?: string;
 	type: MovableType;
 	ownerId?: string;
 }
 
-abstract class Movable extends Resource {
+export abstract class Movable extends Resource {
 	public override readonly type: MovableType;
 
 	private _model: string;
@@ -98,20 +96,6 @@ abstract class Movable extends Resource {
 		this.propertyChange("couplerType", this.couplerType);
 	}
 
-	private _currentLocation?: MovableLocation;
-	/** The Station in which the object is currently located */
-	public get currentLocation() {
-		return this._currentLocation;
-	}
-	private set currentLocation(location: MovableLocation | undefined) {
-		// there can't be a track without a station as tracks are tied to stations :)
-		if (location && !location.station && location.track)
-			location.track = undefined;
-
-		this._currentLocation = location;
-		this.propertyChange("currentLocation", this.currentLocation);
-	}
-
 	private _name?: string;
 	public get name() {
 		return this._name;
@@ -135,8 +119,6 @@ abstract class Movable extends Resource {
 			: undefined;
 	}
 
-	abstract currentTrain?: Train;
-
 	constructor(type: MovableType, options: MovableOptions) {
 		super(type, options);
 		this.type = options.type;
@@ -146,18 +128,6 @@ abstract class Movable extends Resource {
 		this._length = options.length;
 		this._couplerType = options.couplerType;
 		this._ownerId = options.ownerId;
-
-		const curSt =
-			options.currentLocation &&
-			this.realm.stationManager.get(options.currentLocation.stationId);
-		this._currentLocation = curSt &&
-			options.currentLocation && {
-				station: curSt,
-				track: options.currentLocation.trackId
-					? curSt.tracks.get(options.currentLocation.trackId)
-					: undefined,
-			};
-
 		this._name = options.name;
 	}
 
@@ -186,29 +156,6 @@ abstract class Movable extends Resource {
 		}
 		if (typeof data.couplerType === "string") {
 			this.couplerType = data.couplerType;
-			modified = true;
-		}
-		const stat =
-			typeof data.currentStationId === "string"
-				? this.realm.stationManager.get(data.currentStationId)
-				: undefined;
-		if (stat) {
-			this.currentLocation = {
-				...this.currentLocation,
-				station: stat,
-			};
-			modified = true;
-		}
-		if (
-			typeof data.currentTrackId === "string" &&
-			this.currentLocation?.station.tracks.get(data.currentTrackId)
-		) {
-			this.currentLocation = {
-				...this.currentLocation,
-				track: this.currentLocation.station.tracks.get(
-					data.currentTrackId
-				),
-			};
 			modified = true;
 		}
 

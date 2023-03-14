@@ -2,7 +2,7 @@ import Collection from "@discordjs/collection";
 import { Server as SIOServer } from "socket.io";
 import TMLogger from "../helpers/logger";
 import Redis from "../helpers/redis";
-import Client from "../types/client";
+import Client from "../types/Client";
 
 const managers = new Collection<string, BaseManager>();
 

@@ -1,7 +1,8 @@
 import { ForbiddenError } from "apollo-server-core";
 import TMLogger from "../helpers/logger";
-import Realm from "../types/realm";
-import User from "../types/user";
+import Session from "../types/Session";
+import TMError from "../types/TMError";
+import User from "../types/User";
 import BaseManager from "./BaseManager";
 
 interface TimeOptions {
@@ -28,7 +29,7 @@ interface TimeOptions {
 	we can easily get the actual amount of TRUE time that's passed.
 */
 class TimeManager extends BaseManager {
-	public readonly realm: Realm;
+	public readonly session: Session;
 	public readonly ready: Promise<void>;
 	public override readonly logger: TMLogger;
 
@@ -37,6 +38,8 @@ class TimeManager extends BaseManager {
 		return this._restricted;
 	}
 	private set restricted(state: boolean) {
+		this.checkSessEnded();
+
 		this.save(false, true);
 		this._restricted = state;
 		this.save();
@@ -48,6 +51,8 @@ class TimeManager extends BaseManager {
 		return this._running;
 	}
 	private set running(state: boolean) {
+		this.checkSessEnded();
+
 		this.save(false, true);
 		this._running = state;
 		this.save();
@@ -59,6 +64,8 @@ class TimeManager extends BaseManager {
 		return this._startPoint;
 	}
 	private set startPoint(point: number) {
+		this.checkSessEnded();
+
 		this.save(false, true);
 		this._startPoint = point;
 		this.save();
@@ -70,6 +77,8 @@ class TimeManager extends BaseManager {
 		return this._speedModifier;
 	}
 	private set speedModifier(speed: number) {
+		this.checkSessEnded();
+
 		this.save(false, true);
 		if (speed > 1000) speed = 1000;
 		this._speedModifier = speed;
@@ -119,10 +128,30 @@ class TimeManager extends BaseManager {
 		});
 	}
 
-	constructor(realm: Realm, options?: TimeOptions) {
-		super(`realms:${realm.id}:time`, realm.ionsp.server, realm.client);
-		this.realm = realm;
-		this.logger = new TMLogger(`TIME:${realm.id}`, `TIME:${realm.shortId}`);
+	private checkSessEnded() {
+		if (this.session.ended)
+			throw new TMError(
+				`ESESSIONENDED`,
+				`You cannot edit time properties after the session has ended.`,
+				{
+					sessionId: this.session.id,
+					realmId: this.session.realmId,
+					endedAt: this.session.ended,
+				}
+			);
+	}
+
+	constructor(session: Session, options?: TimeOptions) {
+		super(
+			`realms:${session.realm.id}:sessions:${session.id}:time`,
+			session.realm.ionsp.server,
+			session.realm.client
+		);
+		this.session = session;
+		this.logger = new TMLogger(
+			`TIME:${session.realm.id}:${session.id}`,
+			`TIME:${session.realm.shortId}:${session.shortId}`
+		);
 
 		// eslint-disable-next-line no-async-promise-executor
 		this.ready = new Promise(async (res, rej) => {
@@ -133,10 +162,19 @@ class TimeManager extends BaseManager {
 						"{}";
 					try {
 						options = JSON.parse(meta);
-					} catch {
-						// TODO: do not load with malformed data / disable realm
+					} catch (err) {
+						// TODO: do not load with malformed data / disable session
 						this.logger.warn(
-							`Malformed Time data @ Realm ${realm.id}`
+							`Malformed Time data @ Realm ${session.id}`
+						);
+						throw new TMError(
+							`ETIMEMALFORMED`,
+							`TimeManager data malformed`,
+							{
+								realmId: this.session.realmId,
+								sessionId: this.session.id,
+								internalError: err,
+							}
 						);
 					}
 				}
@@ -151,6 +189,7 @@ class TimeManager extends BaseManager {
 				this._elapsed = options?.elapsed ?? Date.now();
 				this._trueElapsed = options?.trueElapsed ?? 0;
 
+				// TODO: is this a good idea?
 				await this.save();
 				this.logger.debug(
 					`Ready; current time: ${this.trueDate.toUTCString()}`
@@ -190,15 +229,18 @@ class TimeManager extends BaseManager {
 
 	setRunning(state: boolean, actor: User) {
 		if (
-			!actor.hasPermission("control time", this.realm) &&
-			!actor.hasPermission("manage time", this.realm)
+			!actor.hasPermission("control time", this.session.realm) &&
+			!actor.hasPermission("manage time", this.session.realm)
 		)
 			throw new ForbiddenError(`No permission`, {
 				tmCode: `ENOPERM`,
 				permission: `control time`,
 			});
 
-		if (this.restricted && !actor.hasPermission("manage time", this.realm))
+		if (
+			this.restricted &&
+			!actor.hasPermission("manage time", this.session.realm)
+		)
 			throw new ForbiddenError(`No permission`, {
 				tmCode: `ENOPERM`,
 				permission: `manage time`,
@@ -210,7 +252,7 @@ class TimeManager extends BaseManager {
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage time", this.realm))
+		if (!actor.hasPermission("manage time", this.session.realm))
 			throw new ForbiddenError(`No permission`, {
 				tmCode: `ENOPERM`,
 				permission: `manage time`,
@@ -254,7 +296,7 @@ class TimeManager extends BaseManager {
 		this._elapsed = Date.now();
 
 		const meta = this.metadata();
-		if (bc) this.realm.ionsp.emit("time metadata", meta);
+		if (bc) this.session.realm.ionsp.emit("time metadata", meta);
 		if (!memoryOnly) await this.db.add("metadata", meta);
 
 		return true;

@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { TMAuthRequest } from "../../middleware/httpauth";
-import Client from "../../types/client";
-import User from "../../types/user";
+import Client from "../../types/Client";
+import User from "../../types/User";
 
 async function register(client: Client, req: TMAuthRequest, res: Response) {
 	const authUser = req.auth;

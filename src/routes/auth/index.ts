@@ -1,6 +1,6 @@
 import Express from "express";
 import { authenticate, TMAuthRequest } from "../../middleware/httpauth";
-import Client from "../../types/client";
+import Client from "../../types/Client";
 import login from "./login";
 import register from "./register";
 

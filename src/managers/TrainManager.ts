@@ -1,9 +1,8 @@
 import Collection from "@discordjs/collection";
-import Realm from "../types/realm";
-import TMError from "../types/tmerror";
-import Train, { TrainOptions, TrainOptionsMetadata } from "../types/train";
-import TrainSet from "../types/trainset";
-import User from "../types/user";
+import Realm from "../types/Realm";
+import TMError from "../types/TMError";
+import Train, { TrainOptions, TrainOptionsMetadata } from "../types/Train";
+import User from "../types/User";
 import ResourceManager from "./ResourceManager";
 
 class TrainManager extends ResourceManager {
@@ -68,39 +67,8 @@ class TrainManager extends ResourceManager {
 		for (const r of arr) {
 			try {
 				const v = JSON.parse(r[1]) as TrainOptionsMetadata;
-				const locStat =
-					v.location &&
-					this.realm.stationManager.get(v.location.stationId);
-				const location =
-					locStat && v.location
-						? {
-								station: locStat,
-								track: v.location.trackId
-									? locStat.tracks.get(v.location.trackId)
-									: undefined,
-						  }
-						: undefined;
 
-				const locomotive = v.locomotiveId
-					? this.realm.movableManager.getLoco(v.locomotiveId)
-					: undefined;
-
-				const trainSets = v.trainSetIds
-					?.map((s) => this.realm.trainSetManager.get(s))
-					.filter((s) => s instanceof TrainSet) as TrainSet[] | undefined;
-
-				if (trainSets?.length !== v.trainSetIds?.length)
-					throw new TMError(
-						`ETRBADTRAINSETID`,
-						`Invalid TrainSet ID passed!`,
-						{
-							got: v.trainSetIds,
-							found: trainSets?.map((t) => t.id),
-						}
-					);
-
-				const opt = { ...v, location, locomotive, trainSets };
-				await this.create(opt);
+				await this.create(v);
 			} catch {
 				this.logger.warn(`Malformed train data @ ${r[0]}`);
 			}

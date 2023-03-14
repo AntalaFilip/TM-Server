@@ -1,20 +1,34 @@
 import TMLogger from "../helpers/logger";
-import Realm from "../types/realm";
-import Resource, { ManagerType, ResourceContructorOptions, ResourceOptions } from "../types/resource";
-import User from "../types/user";
+import Realm from "../types/Realm";
+import Resource, {
+	ManagerType,
+	ResourceConstructorOptions,
+	ResourceOptions,
+} from "../types/Resource";
+import User from "../types/User";
 import BaseManager from "./BaseManager";
 
-const managers = new Map<string, ResourceManager>();
+const managers = new Map<string, ResourceManager<boolean>>();
 
-interface ResourceData<M extends ManagerType = ResourceManager> {
-	fromResourceIdentifier(fullId: string): Resource<M> | undefined |  Promise<Resource<M> | undefined>;
-	create(resource: Resource<M> | ResourceContructorOptions<M>): Resource<M> |  Promise<Resource<M>>;
+interface ResourceData<
+	M extends ManagerType = ResourceManager,
+	U extends boolean = true
+> {
+	fromResourceIdentifier(
+		fullId: string
+	): Resource<M, U> | undefined | Promise<Resource<M, U> | undefined>;
+	create(
+		resource: Resource<M> | ResourceConstructorOptions<M>
+	): Resource<M, U> | Promise<Resource<M, U>>;
 	getOne(id: string): ResourceOptions<M> | undefined;
 	getAll(): ResourceOptions<M>[];
-	get(id: string): Resource<M> | undefined;
+	get(id: string): Resource<M, U> | undefined;
 }
 
-abstract class ResourceManager extends BaseManager implements ResourceData {
+abstract class ResourceManager<U extends boolean = true>
+	extends BaseManager
+	implements ResourceData<ResourceManager, U>
+{
 	readonly realm: Realm;
 	readonly type: string;
 	override readonly logger: TMLogger;
@@ -33,23 +47,26 @@ abstract class ResourceManager extends BaseManager implements ResourceData {
 
 	static get(id: string): ResourceManager {
 		const manager = managers.get(id);
-		if (!manager) throw new Error('Invalid manager');
+		if (!manager) throw new Error("Invalid manager");
 		return manager;
 	}
 
 	abstract fromResourceIdentifier(
 		fullId: string
-	): Resource | undefined | Promise<Resource | undefined>;
+	):
+		| Resource<ResourceManager, U>
+		| undefined
+		| Promise<Resource<ResourceManager, U> | undefined>;
 
-	abstract get(id: string): Resource | undefined;
+	abstract get(id: string): Resource<ResourceManager, U> | undefined;
 
 	abstract getOne(id: string): ResourceOptions | undefined;
 	abstract getAll(): ResourceOptions[];
 
 	abstract create(
-		resource: Resource | ResourceContructorOptions,
+		resource: Resource | ResourceConstructorOptions,
 		actor?: User
-	): Resource | Promise<Resource>;
+	): Resource<ResourceManager, U> | Promise<Resource<ResourceManager, U>>;
 
 	key(name: string): string {
 		return `${this.id}:${name}`;

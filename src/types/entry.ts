@@ -1,9 +1,12 @@
 import Collection from "@discordjs/collection";
-import ArrDepSet from "./arrdepset";
-import Resource, { ResourceOptions } from "./resource";
-import Timetable from "./timetable";
-import TMError from "./tmerror";
-import TrainSet from "./trainset";
+import { SessionSpecificResourceDataOptions } from "../interfaces/SessionSpecificResourceDataOptions";
+import { SessionSpecificDataManager } from "../managers/SessionSpecificDataManager";
+import ArrDepSet from "./ArrDepSet";
+import Resource, { ResourceOptions } from "./Resource";
+import { SessionSpecificResourceData } from "./SessionSpecificResourceData";
+import Timetable from "./Timetable";
+import TMError from "./TMError";
+import TrainSet from "./TrainSet";
 
 interface TimetableEntryOptions extends ResourceOptions {
 	trainId: string;
@@ -23,7 +26,57 @@ interface TimetableEntryOptions extends ResourceOptions {
 	ttId: string;
 }
 
+class SessionSpecificTimetableEntryData extends SessionSpecificResourceData<TimetableEntry> {
+	public sessionData: undefined;
+	metadata(): SessionSpecificResourceDataOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			realmId: this.realmId,
+			sessionId: this.sessionId,
+		};
+	}
+
+	constructor(
+		options: SessionSpecificResourceDataOptions,
+		resource: TimetableEntry
+	) {
+		super(`sessionspecific-timetable`, options, resource);
+	}
+
+	fullMetadata() {
+		return this.metadata();
+	}
+
+	publicMetadata() {
+		return this.metadata();
+	}
+
+	modify() {
+		return false;
+	}
+
+	async save() {
+		this.instanceManager.db.redis.hset(this.instanceManager.id, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
+
+		return true;
+	}
+}
+
+class SessionSpecificTimetableEntryDataManager extends SessionSpecificDataManager<TimetableEntry> {
+	instantiate(
+		opts: SessionSpecificResourceDataOptions,
+		resource: TimetableEntry
+	): SessionSpecificTimetableEntryData {
+		return new SessionSpecificTimetableEntryData(opts, resource);
+	}
+}
+
 class TimetableEntry extends Resource {
+	public sessionData: SessionSpecificTimetableEntryDataManager;
 	public readonly ttId: string;
 	public get timetable(): Timetable {
 		const tt = this.realm.timetableManager.get(this.ttId);
@@ -139,26 +192,6 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`duration`, length);
 	}
 
-	public get times(): ArrDepSet[] {
-		const times = [];
-		// we want to generate the last entry as well, to make sure that current trains will have some reference
-		for (let i = -1; i < this.timetable.genCount - 1; i++) {
-			const no = this.adsCount + i;
-			const set = new ArrDepSet({
-				no,
-				entryId: this.id,
-				timetableId: this.timetable.id,
-				managerId: this.managerId,
-			});
-			times.push(set);
-		}
-		return times;
-	}
-
-	public get current() {
-		return this.times[1];
-	}
-
 	private _adsCount: number;
 	public get adsCount() {
 		return this._adsCount;
@@ -190,6 +223,8 @@ class TimetableEntry extends Resource {
 		this.delayedAds = new Collection(options.delayedAds ?? []);
 
 		this.setIds = options.setIds ?? [];
+
+		this.sessionData = new SessionSpecificTimetableEntryDataManager(this.realm, this);
 	}
 
 	/**
@@ -200,11 +235,6 @@ class TimetableEntry extends Resource {
 		this.setIds.length = 0;
 		this.setIds.push(...setIds);
 		this.propertyChange(`setIds`, setIds);
-	}
-
-	nextSet() {
-		this.adsCount++;
-		return this.current;
 	}
 
 	modify(): boolean | Promise<boolean> {
@@ -234,10 +264,7 @@ class TimetableEntry extends Resource {
 	}
 
 	publicMetadata() {
-		return {
-			...this.metadata(),
-			times: this.times.slice(0, 5),
-		};
+		return this.metadata();
 	}
 
 	fullMetadata() {
@@ -248,7 +275,6 @@ class TimetableEntry extends Resource {
 			track: this.track?.publicMetadata(),
 			train: this.train?.publicMetadata(),
 			sets: this.sets.map((s) => s.publicMetadata()),
-			times: this.times,
 		};
 	}
 
@@ -263,4 +289,4 @@ class TimetableEntry extends Resource {
 }
 
 export default TimetableEntry;
-export { TimetableEntryOptions, ArrDepSet };
+export { TimetableEntryOptions, ArrDepSet, SessionSpecificTimetableEntryData };

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { signData } from "../../helpers/jwt";
-import Client from "../../types/client";
+import Client from "../../types/Client";
 
 async function login(client: Client, req: Request, res: Response) {
 	const data = req.body;

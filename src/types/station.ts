@@ -1,9 +1,9 @@
-import Resource, { ResourceOptions } from "./resource";
-import StationTrack, { StationTrackOptions } from "./track";
 import Collection from "@discordjs/collection";
-import User from "./user";
 import { ForbiddenError } from "apollo-server-core";
-import TMError from "./tmerror";
+import Resource, { ResourceOptions } from "./Resource";
+import { SessionSpecificStationDataManager } from "./SessionSpecificStationDataManager";
+import StationTrack, { StationTrackOptions } from "./Track";
+import User from "./User";
 
 type StationType = "STATION" | "STOP";
 
@@ -16,10 +16,9 @@ interface StationOptions extends ResourceOptions {
 	short: string;
 	tracks?: StationTrack[];
 	stationType: StationType;
-	dispatcher?: User;
 }
 
-class Station extends Resource {
+export class Station extends Resource {
 	private _name: string;
 	public get name() {
 		return this._name;
@@ -47,35 +46,9 @@ class Station extends Resource {
 		this.propertyChange(`stationType`, type);
 	}
 
-	private _dispatcher?: User;
-	public get dispatcher() {
-		return this._dispatcher;
-	}
-	private set dispatcher(disp: User | undefined) {
-		this._dispatcher = disp;
-		const trueTimestamp = this.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(
-			this.manager.key(`${this.id}:dispatchers`),
-			"*",
-			"id",
-			disp?.id ?? "",
-			"type",
-			disp?.type ?? "",
-			"time",
-			trueTimestamp
-		);
-		this.propertyChange(`dispatcherId`, disp?.id);
-	}
-
-	public get trains() {
-		return Array.from(
-			this.realm.trainManager.trains
-				.filter((t) => t.location?.station === this)
-				.values()
-		);
-	}
-
 	public readonly tracks: Collection<string, StationTrack>;
+
+	public sessionData: SessionSpecificStationDataManager;
 
 	constructor(options: StationOptions) {
 		super("station", options);
@@ -85,8 +58,11 @@ class Station extends Resource {
 		this._stationType = options.stationType;
 
 		// TODO: sanity check
-		this._dispatcher = options.dispatcher;
 		this.tracks = new Collection(options.tracks?.map((v) => [v.id, v]));
+		this.sessionData = new SessionSpecificStationDataManager(
+			this.realm,
+			this
+		);
 	}
 
 	async addTrack(resource: StationTrack | StationTrackOptions, actor?: User) {
@@ -123,9 +99,7 @@ class Station extends Resource {
 	publicMetadata() {
 		return {
 			...this.metadata(),
-			dispatcherId: this.dispatcher?.id,
 			trackIds: this.tracks.map((t) => t.id),
-			trainIds: this.trains.map((t) => t.id),
 		};
 	}
 
@@ -139,24 +113,11 @@ class Station extends Resource {
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage stations", this.realm))
-			throw new ForbiddenError(`No permission`, {
-				permission: `manage stations`,
-			});
+		User.checkPermission(actor, "manage stations", this.realm);
 		let modified = false;
 
 		// TODO: auditing
 
-		if (
-			typeof data.dispatcherId === "string" &&
-			this.realm.client.userManager.get(data.dispatcherId)
-		) {
-			this.setDispatcher(
-				this.realm.client.userManager.get(data.dispatcherId),
-				actor
-			);
-			modified = true;
-		}
 		if (typeof data.name === "string") {
 			this.name = data.name;
 			modified = true;
@@ -170,44 +131,7 @@ class Station extends Resource {
 			modified = true;
 		}
 
-		if (!modified) return false;
-
-		return true;
-	}
-
-	setDispatcher(newDisp: User | undefined, actor: User) {
-		const self = actor.hasPermission("assign self");
-		const others = actor.hasPermission("assign users");
-		// Oh this mess... and it should've been so easy
-		if (
-			// Negate the result, as it's the other way round
-			!(
-				// If is self (start), or is self (end) and has permissions
-				(
-					((newDisp === actor ||
-						(newDisp == undefined && this.dispatcher === actor)) &&
-						(self || others)) ||
-					// Or just has permissions to modify others
-					others
-				)
-			)
-		)
-			throw new ForbiddenError(`No permission`, {
-				permission: "assign self XOR assign users",
-			});
-
-		const already = newDisp?.dispatching;
-		if (already)
-			throw new TMError(
-				`EALREADYDISPATCHING`,
-				`User is already dispatching in another station!`,
-				{ station: already.id }
-			);
-
-		if (newDisp === this.dispatcher) return;
-		this.dispatcher = newDisp;
-
-		return true;
+		return modified;
 	}
 
 	/**

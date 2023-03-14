@@ -1,6 +1,7 @@
-import Movable from "./movable";
-import Resource, { ResourceOptions } from "./resource";
-import User from "./user";
+import ResourceManager from "../managers/ResourceManager";
+import Movable from "./Movable";
+import Resource, { ResourceOptions } from "./Resource";
+import User from "./User";
 
 interface TrainSetOptions extends ResourceOptions {
 	name: string;
@@ -12,7 +13,8 @@ interface TrainSetOptionsMetadata extends ResourceOptions {
 	componentIds: string[];
 }
 
-class TrainSet extends Resource {
+class TrainSet extends Resource<ResourceManager, false> {
+	public sessionData: undefined;
 	private _name: string;
 	public get name() {
 		return this._name;

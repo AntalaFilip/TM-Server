@@ -1,8 +1,10 @@
 import { newUUID } from "../helpers/id";
 import BaseManager from "../managers/BaseManager";
 import ResourceManager from "../managers/ResourceManager";
-import Realm from "./realm";
-import User from "./user";
+import SessionManager from "../managers/SessionManager";
+import { SessionSpecificDataManager } from "../managers/SessionSpecificDataManager";
+import Realm from "./Realm";
+import User from "./User";
 
 interface ResourceOptions<M extends ManagerType = ResourceManager> {
 	id: string;
@@ -10,16 +12,30 @@ interface ResourceOptions<M extends ManagerType = ResourceManager> {
 	managerId: M extends null ? null : string;
 }
 
-type ResourceContructorOptions<M extends ManagerType = ResourceManager> = Omit<
+type ResourceConstructorOptions<M extends ManagerType = ResourceManager> = Omit<
 	ResourceOptions<M>,
 	"id"
 > & { id?: string };
 
 type ManagerType = ResourceManager | BaseManager | null;
-type RealmType<M> = M extends ResourceManager ? Realm : null;
+type RealmType<M> = M extends ResourceManager<true>
+	? Realm
+	: M extends ResourceManager<false>
+	? Realm
+	: null;
 type RealmIdType<M> = M extends ResourceManager ? string : null;
+type SessionDataType<M, U> = U extends false
+	? undefined
+	: M extends ResourceManager
+	? M extends SessionManager
+		? undefined
+		: SessionSpecificDataManager<Resource>
+	: undefined;
 
-abstract class Resource<M extends ManagerType = ResourceManager> {
+export abstract class Resource<
+	M extends ManagerType = ResourceManager,
+	U extends boolean = true
+> {
 	public readonly id: string;
 	public readonly shortId: string;
 	public readonly realmId: RealmIdType<M>;
@@ -42,7 +58,9 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 		} else return null as M;
 	}
 
-	constructor(type: string, options: ResourceContructorOptions<M>) {
+	public abstract sessionData: SessionDataType<M, U>;
+
+	constructor(type: string, options: ResourceConstructorOptions<M>) {
 		this.id = options.id ?? newUUID();
 		this.shortId = this.id.slice(this.id.length - 6);
 		this.realmId = options.realmId;
@@ -57,7 +75,7 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 	 * @param noSave Whether to skip saving the Resource
 	 * @returns
 	 */
-	protected propertyChange(prop: string, value: unknown, noSave = false) {
+	public propertyChange(prop: string, value: unknown, noSave = false) {
 		if (!noSave) this.save();
 		const i = this.realm?.ionsp ?? this.manager?.client.io;
 		if (!i) return false;
@@ -71,12 +89,18 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 	abstract save(): boolean | Promise<boolean>;
 	/** Returns metadata required to reconstruct the Resource */
 	abstract metadata(): ResourceOptions<M>;
-	/** Returns the metadata that can be made public */
+	/** Returns the metadata that can be made public in a JSON-ified form */
 	abstract publicMetadata(): ResourceOptions<M>;
 	/** Returns the required metadata for the GraphQL resolver */
 	abstract fullMetadata(): ResourceOptions<M>;
 }
 
 export default Resource;
-export type { ManagerType, RealmType, RealmIdType, ResourceContructorOptions };
-export { ResourceOptions };
+export type {
+	ManagerType,
+	RealmType,
+	RealmIdType,
+	ResourceConstructorOptions,
+	SessionDataType,
+	ResourceOptions,
+};

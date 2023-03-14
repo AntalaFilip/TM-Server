@@ -5,18 +5,19 @@ import {
 	UserInputError,
 } from "apollo-server-core";
 import DateScalar from "./graphql/dateScalar";
-import Client from "./types/client";
-import TimetableEntry, { ArrDepSet } from "./types/entry";
-import Locomotive from "./types/locomotive";
-import Movable from "./types/movable";
-import Realm from "./types/realm";
-import { TrainState } from "./types/train";
-import TrainSet from "./types/trainset";
-import User, { UserPermissions } from "./types/user";
-import Wagon from "./types/wagon";
-import LongScalar from "graphql-type-long";
-import Station from "./types/station";
+import Client from "./types/Client";
+import TimetableEntry from "./types/Entry";
+import Locomotive from "./types/Locomotive";
+import Movable from "./types/Movable";
+import Realm from "./types/Realm";
+import Train, { TrainState } from "./types/Train";
+import TrainSet from "./types/TrainSet";
+import User, { UserPermissions } from "./types/User";
+import Wagon from "./types/Wagon";
+import Station from "./types/Station";
 import { firstCapital } from "./helpers/string";
+import StationTrack from "./types/Track";
+import Session from "./types/Session";
 
 type GQLContext = {
 	user?: User;
@@ -25,7 +26,6 @@ type GQLContext = {
 function createGQLResolvers(client: Client) {
 	const resolvers = {
 		Date: DateScalar,
-		Long: LongScalar,
 		Movable: {
 			__resolveType: (obj: Movable) => firstCapital(obj.type),
 		},
@@ -38,33 +38,36 @@ function createGQLResolvers(client: Client) {
 		TrainSet: {
 			trains: (parent: TrainSet) =>
 				parent.realm.trainManager.trains.filter((t) =>
-					t.trainSets.includes(parent)
+					Array.from(t.sessionData.data.values())
+						.flatMap((sd) => sd.trainSets)
+						.includes(parent)
 				),
 		},
-		TimetableEntry: {
-			cancelledAds: (parent: TimetableEntry) =>
-				parent.cancelledAds.map(
-					(a) =>
-						new ArrDepSet({
-							no: a,
-							entryId: parent.id,
-							timetableId: parent.timetable.id,
-							managerId: parent.manager.id,
-						})
-				),
-			delayedAds: (parent: TimetableEntry) =>
-				parent.delayedAds.map((d, no) => ({
-					delay: d,
-					ads: new ArrDepSet({
-						no,
-						entryId: parent.id,
-						timetableId: parent.timetable.id,
-						managerId: parent.manager.id,
-					}),
-				})),
+		Train: {
+			sessionData: (parent: Train) =>
+				Array.from(parent.sessionData.data.values()),
 		},
 		Station: {
 			tracks: (parent: Station) => Array.from(parent.tracks.values()),
+			sessionData: (parent: Station) =>
+				Array.from(parent.sessionData.data.values()),
+		},
+		StationTrack: {
+			sessionData: (parent: StationTrack) =>
+				Array.from(parent.sessionData.data.values()),
+		},
+		Locomotive: {
+			sessionData: (parent: Locomotive) =>
+				Array.from(parent.sessionData.data.values()),
+		},
+		Session: {
+			arrDepSets: (parent: Session) =>
+				Array.from(parent.aDSManager.arrdepsets.values()),
+			time: (parent: Session) => parent.timeManager,
+		},
+		Wagon: {
+			sessionData: (parent: Wagon) =>
+				Array.from(parent.sessionData.data.values()),
 		},
 		Query: {
 			stations: async (_p: never, a: { realm: string }) => {
@@ -75,6 +78,7 @@ function createGQLResolvers(client: Client) {
 			station: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.stationManager.get(a.id);
 			},
+
 			trains: async (_p: never, a: { realm: string }) => {
 				return Array.from(
 					client.get(a.realm)?.trainManager.trains.values() ?? []
@@ -83,6 +87,7 @@ function createGQLResolvers(client: Client) {
 			train: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.trainManager.get(a.id);
 			},
+
 			trainSets: async (_p: never, a: { realm: string }) => {
 				return Array.from(
 					client.get(a.realm)?.trainSetManager.trainsets.values() ??
@@ -92,6 +97,7 @@ function createGQLResolvers(client: Client) {
 			trainSet: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.trainSetManager.get(a.id);
 			},
+
 			locomotives: async (_p: never, a: { realm: string }) => {
 				return Array.from(
 					client
@@ -105,6 +111,7 @@ function createGQLResolvers(client: Client) {
 			locomotive: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.movableManager.getLoco(a.id);
 			},
+
 			wagons: async (_p: never, a: { realm: string }) => {
 				return Array.from(
 					client
@@ -118,6 +125,7 @@ function createGQLResolvers(client: Client) {
 			wagon: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.movableManager.getWagon(a.id);
 			},
+
 			timetables: async (_p: never, a: { realm: string }) => {
 				return Array.from(
 					client.get(a.realm)?.timetableManager.timetables.values() ??
@@ -127,6 +135,38 @@ function createGQLResolvers(client: Client) {
 			timetable: async (_p: never, a: { realm: string; id: string }) => {
 				return client.get(a.realm)?.timetableManager.get(a.id);
 			},
+
+			sessions: async (_p: never, a: { realm: string }) => {
+				return Array.from(
+					client.get(a.realm)?.sessionManager.sessions.values() ?? []
+				);
+			},
+			session: async (_p: never, a: { realm: string; id: string }) => {
+				return client.get(a.realm)?.sessionManager.get(a.id);
+			},
+
+			arrDepSets: async (
+				_p: never,
+				a: { realm: string; session: string }
+			) => {
+				return Array.from(
+					client
+						.get(a.realm)
+						?.sessionManager.get(a.session)
+						?.aDSManager.arrdepsets.values() ?? []
+				);
+			},
+
+			arrDepSet: async (
+				_p: never,
+				a: { realm: string; session: string; id: string }
+			) => {
+				return client
+					.get(a.realm)
+					?.sessionManager.get(a.session)
+					?.aDSManager.get(a.id);
+			},
+
 			users: async (_p: never, a: { disabled?: boolean }) => {
 				return Array.from(client.userManager.users.values()).filter(
 					(u) => !u.disabled || a.disabled
@@ -141,8 +181,9 @@ function createGQLResolvers(client: Client) {
 			realm: async (_p: never, a: { id: string }) => {
 				return client.get(a.id);
 			},
-			time: async (_p: never, a: { realm: string }) => {
-				return client.get(a.realm)?.timeManager;
+			time: async (_p: never, a: { realm: string; session: string }) => {
+				return client.get(a.realm)?.sessionManager.get(a.session)
+					?.timeManager;
 			},
 		},
 		Mutation: {
@@ -197,7 +238,12 @@ function createGQLResolvers(client: Client) {
 			},
 			setStationDispatcher: async (
 				_p: never,
-				a: { realm: string; station: string; dispatcher: string },
+				a: {
+					realm: string;
+					session: string;
+					station: string;
+					dispatcher: string;
+				},
 				c: GQLContext
 			) => {
 				if (!c.user)
@@ -217,6 +263,14 @@ function createGQLResolvers(client: Client) {
 						code: `EBADPARAM`,
 						extension: `STATION`,
 					});
+
+				const sessionData = station.sessionData.get(a.session);
+				if (!sessionData)
+					throw new UserInputError(`Invalid StationSessionData ID!`, {
+						code: `EBADPARAM`,
+						extension: `STATIONSESSIONDATA`,
+					});
+
 				const dispatcher = client.userManager.get(a.dispatcher);
 				if (!dispatcher && a.dispatcher)
 					throw new UserInputError(`Invalid User ID!`, {
@@ -224,7 +278,7 @@ function createGQLResolvers(client: Client) {
 						extension: `STATION`,
 					});
 
-				station.setDispatcher(dispatcher, c.user);
+				sessionData.setDispatcher(dispatcher, c.user);
 				return station;
 			},
 			addStationTrack: async (
@@ -397,6 +451,7 @@ function createGQLResolvers(client: Client) {
 					state: TrainState;
 					override?: boolean;
 					realm: string;
+					session: string;
 				},
 				c: GQLContext
 			) => {
@@ -418,8 +473,15 @@ function createGQLResolvers(client: Client) {
 						extension: `TRAIN`,
 					});
 
+				const sessionData = train.sessionData.get(a.session);
+				if (!sessionData)
+					throw new UserInputError(`Invalid TrainSessionData ID!`, {
+						tmCode: `EBADPARAM`,
+						extension: `TRAINSESSIONDATA`,
+					});
+
 				// TODO: add ...extra handling, ex. changing arrival track
-				train.updateTrainState(a.state, c.user, a.override);
+				sessionData.updateTrainState(a.state, c.user, a.override);
 				return train;
 			},
 			addTrainSet: async (
@@ -710,7 +772,7 @@ function createGQLResolvers(client: Client) {
 				await timetable.modify(a.input, c.user);
 				return timetable;
 			},
-			activeTimetable: async (
+			/* activeTimetable: async (
 				_p: never,
 				a: { timetable: string; realm: string },
 				c: GQLContext
@@ -739,7 +801,7 @@ function createGQLResolvers(client: Client) {
 					});
 
 				return realm.setActiveTimetable(timetable);
-			},
+			}, */
 			addTimetableEntry: async (
 				_p: never,
 				a: { realm: string; timetable: string; input: any },
@@ -904,9 +966,9 @@ function createGQLResolvers(client: Client) {
 				return realm;
 			},
 
-			modRealmTime: async (
+			modTime: async (
 				_p: never,
-				a: { input: any; realm: string },
+				a: { input: any; realm: string; session: string },
 				c: GQLContext
 			) => {
 				if (!c.user)
@@ -920,12 +982,19 @@ function createGQLResolvers(client: Client) {
 						extension: `REALM`,
 					});
 
-				realm.timeManager.modify(a.input, c.user);
-				return realm.timeManager;
+				const session = realm.sessionManager.get(a.session);
+				if (!session)
+					throw new UserInputError(`Invalid Session ID!`, {
+						tmCode: `EBADPARAM`,
+						extension: `SESSION`,
+					});
+
+				session.timeManager.modify(a.input, c.user);
+				return session.timeManager;
 			},
-			pauseRealmTime: async (
+			pauseTime: async (
 				_p: never,
-				a: { state: boolean; realm: string },
+				a: { state: boolean; session: string; realm: string },
 				c: GQLContext
 			) => {
 				if (!c.user)
@@ -939,8 +1008,15 @@ function createGQLResolvers(client: Client) {
 						extension: `REALM`,
 					});
 
-				realm.timeManager.setRunning(a.state, c.user);
-				return realm.timeManager;
+				const session = realm.sessionManager.get(a.session);
+				if (!session)
+					throw new UserInputError(`Invalid Session ID!`, {
+						tmCode: `EBADPARAM`,
+						extension: `SESSION`,
+					});
+
+				session.timeManager.setRunning(a.state, c.user);
+				return session.timeManager;
 			},
 		},
 	};

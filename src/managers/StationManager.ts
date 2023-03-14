@@ -1,9 +1,9 @@
 import Collection from "@discordjs/collection";
 import { ForbiddenError } from "apollo-server-core";
-import Realm from "../types/realm";
-import Station, { StationOptions } from "../types/station";
-import StationTrack, { StationTrackOptions } from "../types/track";
-import User from "../types/user";
+import Realm from "../types/Realm";
+import Station, { StationOptions } from "../types/Station";
+import StationTrack, { StationTrackOptions } from "../types/Track";
+import User from "../types/User";
 import ResourceManager from "./ResourceManager";
 
 class StationManager extends ResourceManager {
@@ -86,25 +86,6 @@ class StationManager extends ResourceManager {
 					.map(([_k, v]) => JSON.parse(v) as StationTrackOptions)
 					.map((meta) => new StationTrack(meta));
 				v.tracks = tracks;
-
-				const dispd = await this.db.redis.xrevrange(
-					`${this.key(k)}:dispatchers`,
-					"+",
-					"-",
-					"COUNT",
-					1
-				);
-				const lastDisp = dispd[0];
-				if (lastDisp && lastDisp[1]) {
-					const id = lastDisp[1][1];
-					const type = lastDisp[1][3];
-					if (type === "user" && id) {
-						const u = this.client.userManager.get(id);
-						if (u) {
-							v.dispatcher = u;
-						}
-					}
-				}
 
 				await this.create(v);
 			} catch (err) {

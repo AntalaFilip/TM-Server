@@ -1,10 +1,10 @@
 import Collection from "@discordjs/collection";
-import Locomotive from "../types/locomotive";
-import Movable, { MovableOptions } from "../types/movable";
-import Realm from "../types/realm";
-import TMError from "../types/tmerror";
-import User from "../types/user";
-import Wagon, { WagonOptions } from "../types/wagon";
+import Locomotive from "../types/Locomotive";
+import Movable, { MovableOptions } from "../types/Movable";
+import Realm from "../types/Realm";
+import TMError from "../types/TMError";
+import User from "../types/User";
+import Wagon, { WagonOptions } from "../types/Wagon";
 import ResourceManager from "./ResourceManager";
 
 class MovableManager extends ResourceManager {
@@ -40,6 +40,8 @@ class MovableManager extends ResourceManager {
 				resource = new Wagon(resource as WagonOptions);
 			else throw new TMError(`EINTERNAL`, `Bad resource type passed!`);
 		}
+
+		if (!(resource instanceof Movable)) throw new Error(`Internal error`);
 
 		if (this.movables.has(resource.id))
 			throw new Error(`This Movable is already created!`);

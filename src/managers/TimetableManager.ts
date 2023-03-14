@@ -1,10 +1,10 @@
 import Collection from "@discordjs/collection";
 import { ForbiddenError } from "apollo-server-core";
-import TimetableEntry, { TimetableEntryOptions } from "../types/entry";
-import Realm from "../types/realm";
-import Timetable, { TimetableOptions } from "../types/timetable";
-import TMError from "../types/tmerror";
-import User from "../types/user";
+import TimetableEntry, { TimetableEntryOptions } from "../types/Entry";
+import Realm from "../types/Realm";
+import Timetable, { TimetableOptions } from "../types/Timetable";
+import TMError from "../types/TMError";
+import User from "../types/User";
 import ResourceManager from "./ResourceManager";
 
 class TimetableManager extends ResourceManager {
@@ -19,11 +19,7 @@ class TimetableManager extends ResourceManager {
 		this.ready = new Promise((res) => {
 			this.createAllFromStore().then(() => {
 				this.logger.debug(
-					`Ready; loaded ${
-						this.timetables.size
-					} timetables. Current active timetable: ${
-						this.realm.activeTimetable?.name ?? "none"
-					}`
+					`Ready; loaded ${this.timetables.size} timetables.`
 				);
 				res();
 			});

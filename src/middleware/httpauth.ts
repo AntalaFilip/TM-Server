@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../helpers/jwt";
-import Client from "../types/client";
-import User from "../types/user";
+import Client from "../types/Client";
+import User from "../types/User";
 
 interface TMAuthRequest extends Request {
 	auth?: User;

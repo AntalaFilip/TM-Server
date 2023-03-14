@@ -1,6 +1,9 @@
-import Movable, { MovableOptions } from "./movable";
-import Train from "./train";
-import User from "./user";
+import { SessionSpecificResourceDataOptions } from "../interfaces/SessionSpecificResourceDataOptions";
+import { SessionSpecificDataManager } from "../managers/SessionSpecificDataManager";
+import Movable, { MovableOptions } from "./Movable";
+import { SessionSpecificMovableData } from "./SessionSpecificMovableData";
+import Train from "./Train";
+import User from "./User";
 
 type WagonType = keyof typeof WagonTypes;
 const WagonTypes = {
@@ -18,6 +21,50 @@ function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
 	);
 }
 
+class SessionSpecificWagonData extends SessionSpecificMovableData<Wagon> {
+	constructor(opts: SessionSpecificResourceDataOptions, resource: Wagon) {
+		super("sessionspecific-wagon", opts, resource);
+	}
+	metadata(): SessionSpecificResourceDataOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			realmId: this.realmId,
+			sessionId: this.sessionId,
+		};
+	}
+	publicMetadata() {
+		return this.metadata();
+	}
+	fullMetadata() {
+		return this.metadata();
+	}
+	modify(data: Record<string, unknown>, actor: User) {
+		return this._modify(data, actor);
+	}
+
+	public get currentTrain(): Train | undefined {
+		return this.realm.trainManager.trains.find((t) =>
+			Boolean(
+				t.sessionData
+					.get(this.sessionId)
+					?.trainSets.find((s) =>
+						s.components.includes(this.resource)
+					)
+			)
+		);
+	}
+}
+
+class SessionSpecificWagonDataManager extends SessionSpecificDataManager<Wagon> {
+	instantiate(
+		opts: SessionSpecificResourceDataOptions,
+		resource: Wagon
+	): SessionSpecificWagonData {
+		return new SessionSpecificWagonData(opts, resource);
+	}
+}
+
 class Wagon extends Movable {
 	private _wagonType: WagonType;
 	/** Type of the current wagon; eg. passenger/cargo */
@@ -29,15 +76,15 @@ class Wagon extends Movable {
 		this.propertyChange("wagonType", this.wagonType);
 	}
 
+	public sessionData: SessionSpecificWagonDataManager;
+
 	constructor(options: WagonOptions) {
 		super("WAGON", options);
 
 		this._wagonType = options.wagonType;
-	}
-
-	public get currentTrain(): Train | undefined {
-		return this.realm.trainManager.trains.find((t) =>
-			Boolean(t.trainSets.find((s) => s.components.includes(this)))
+		this.sessionData = new SessionSpecificWagonDataManager(
+			this.realm,
+			this
 		);
 	}
 
@@ -46,12 +93,6 @@ class Wagon extends Movable {
 			couplerType: this.couplerType,
 			model: this.model,
 			wagonType: this.wagonType,
-			currentLocation: this.currentLocation
-				? {
-						stationId: this.currentLocation?.station?.id,
-						trackId: this.currentLocation?.track?.id,
-				  }
-				: undefined,
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,
@@ -63,22 +104,10 @@ class Wagon extends Movable {
 		};
 	}
 	publicMetadata() {
-		return {
-			...this.metadata(),
-		};
+		return this.metadata();
 	}
 	fullMetadata() {
-		return {
-			...this.metadata(),
-			currentLocation:
-				this.currentLocation &&
-				Object.fromEntries(
-					Object.entries(this.currentLocation).map(([k, v]) => [
-						k,
-						v.publicMetadata(),
-					])
-				),
-		};
+		return this.metadata();
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
@@ -105,4 +134,10 @@ class Wagon extends Movable {
 }
 
 export default Wagon;
-export { WagonOptions, WagonType, checkWagonTypeValidity, WagonTypes };
+export {
+	WagonOptions,
+	WagonType,
+	checkWagonTypeValidity,
+	WagonTypes,
+	SessionSpecificWagonData,
+};

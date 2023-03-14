@@ -1,10 +1,12 @@
-import Resource, { ResourceOptions } from "./resource";
+import { Collection } from "@discordjs/collection";
+import { ForbiddenError } from "apollo-server-core";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import BaseManager from "../managers/BaseManager";
 import UserManager from "../managers/UserManager";
-import Realm from "./realm";
-import Locomotive from "./locomotive";
-import crypto from "crypto";
+import Locomotive from "./Locomotive";
+import Realm from "./Realm";
+import Resource, { ResourceOptions } from "./Resource";
 
 interface UserOptions extends UserPublicData {
 	passwordHash?: string;
@@ -54,6 +56,7 @@ const PermissionMap = {
 	"manage trains": 1 << 7,
 	"manage timetables": 1 << 8,
 	"assign self": 1 << 9,
+	"manage sessions": 1 << 10,
 };
 
 interface UserSettings {
@@ -61,6 +64,7 @@ interface UserSettings {
 }
 
 class User extends Resource<UserManager> {
+	public sessionData: undefined;
 	private _name: string;
 	public get name() {
 		return this._name;
@@ -123,16 +127,16 @@ class User extends Resource<UserManager> {
 	}
 
 	public get controlling() {
-		return Array.from(this.userManager.client.realms.values())
-			.flatMap(
-				(r) =>
-					Array.from(
-						r.movableManager.movables
-							.filter((v) => v instanceof Locomotive)
-							.values()
-					) as Locomotive[]
+		return this.userManager.client.realms
+			.flatMap((r) =>
+				(
+					r.movableManager.movables.filter(
+						(v) => v instanceof Locomotive
+					) as Collection<string, Locomotive>
+				).flatMap((v) => v.sessionData.data)
 			)
-			.filter((m) => m.controller === this);
+			.filter((m) => m.controller === this)
+			.map((v) => v.resource);
 	}
 
 	public get owning() {
@@ -143,8 +147,10 @@ class User extends Resource<UserManager> {
 
 	public get dispatching() {
 		return this.userManager.client.realms
-			.flatMap((r) => r.stationManager.stations)
-			.find((s) => s.dispatcher === this);
+			.flatMap((r) =>
+				r.stationManager.stations.flatMap((s) => s.sessionData.data)
+			)
+			.find((s) => s.dispatcher === this)?.resource;
 	}
 
 	private readonly permissions: UserPermissions;
@@ -302,6 +308,23 @@ class User extends Resource<UserManager> {
 
 	static hashPassword(password: string): string {
 		return bcrypt.hashSync(password, 10);
+	}
+
+	static checkPermission(
+		user: User,
+		permission: Permission,
+		realm?: Realm,
+		err = true
+	) {
+		if (!user.hasPermission(permission, realm)) {
+			if (err)
+				throw new ForbiddenError(`No permission`, {
+					permission,
+					tmCode: `ENOPERM`,
+				});
+			else return false;
+		}
+		return true;
 	}
 
 	async save(): Promise<boolean> {

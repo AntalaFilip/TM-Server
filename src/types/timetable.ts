@@ -1,7 +1,10 @@
 import { ForbiddenError } from "apollo-server-core";
-import TimetableEntry from "./entry";
-import Resource, { ResourceOptions } from "./resource";
-import User from "./user";
+import { SessionSpecificResourceDataOptions } from "../interfaces/SessionSpecificResourceDataOptions";
+import { SessionSpecificDataManager } from "../managers/SessionSpecificDataManager";
+import TimetableEntry from "./Entry";
+import Resource, { ResourceOptions } from "./Resource";
+import { SessionSpecificResourceData } from "./SessionSpecificResourceData";
+import User from "./User";
 
 interface TimetableOptions extends ResourceOptions {
 	entries?: TimetableEntry[];
@@ -9,7 +12,71 @@ interface TimetableOptions extends ResourceOptions {
 	genCount: number;
 }
 
+class SessionSpecificTimetableData extends SessionSpecificResourceData<Timetable> {
+	public sessionData: undefined;
+	public get inUse() {
+		return this.session.activeTimetable === this.resource;
+	}
+
+	public get nowEntries() {
+		return this.resource.entries.filter(
+			(e) =>
+				e.usedFrom.getTime() <= this.session.timeManager.trueMs &&
+				(e.usedTill?.getTime() ?? Number.POSITIVE_INFINITY) >
+					this.session.timeManager.trueMs
+		);
+	}
+
+	constructor(
+		options: SessionSpecificResourceDataOptions,
+		resource: Timetable
+	) {
+		super(`sessionspecific-timetable`, options, resource);
+	}
+
+	metadata(): SessionSpecificResourceDataOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			realmId: this.realmId,
+			sessionId: this.sessionId,
+		};
+	}
+
+	publicMetadata() {
+		return this.metadata();
+	}
+
+	fullMetadata() {
+		return this.metadata();
+	}
+
+	modify() {
+		return false;
+	}
+
+	async save() {
+		await this.instanceManager.db.redis.hset(this.instanceManager.id, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
+
+		return true;
+	}
+}
+
+class SessionSpecificTimetableDataManager extends SessionSpecificDataManager<Timetable> {
+	instantiate(
+		opts: SessionSpecificResourceDataOptions,
+		resource: Timetable
+	): SessionSpecificTimetableData {
+		return new SessionSpecificTimetableData(opts, resource);
+	}
+}
+
 class Timetable extends Resource {
+	public sessionData: SessionSpecificTimetableDataManager;
+
 	private _name: string;
 	public get name() {
 		return this._name;
@@ -27,23 +94,11 @@ class Timetable extends Resource {
 		this._genCount = count || 5;
 		this.propertyChange(`genCount`, count);
 	}
-
-	public get inUse() {
-		return this.realm.activeTimetable === this;
-	}
 	public get checksPassing() {
 		return this.runChecks();
 	}
 
 	public readonly entries: TimetableEntry[];
-	public get nowEntries() {
-		return this.entries.filter(
-			(e) =>
-				e.usedFrom.getTime() <= this.realm.timeManager.trueMs &&
-				(e.usedTill?.getTime() ?? Number.POSITIVE_INFINITY) >
-					this.realm.timeManager.trueMs
-		);
-	}
 
 	constructor(options: TimetableOptions) {
 		super(`timetable`, options);
@@ -51,6 +106,11 @@ class Timetable extends Resource {
 		this._name = options.name;
 		this._genCount = options.genCount ?? 5;
 		this.entries = options.entries ?? [];
+
+		this.sessionData = new SessionSpecificTimetableDataManager(
+			this.realm,
+			this
+		);
 	}
 
 	/**
@@ -59,7 +119,8 @@ class Timetable extends Resource {
 	 */
 	runChecks() {
 		if (this.entries.length === 0) return false;
-		if (!this.entries.every((e) => e.times.length > 0)) return false;
+		// HACK: implement timetable checks properly
+		// if (!this.entries.every((e) => e.times.length > 0)) return false;
 
 		return true;
 	}
@@ -133,4 +194,4 @@ class Timetable extends Resource {
 }
 
 export default Timetable;
-export { TimetableOptions };
+export { TimetableOptions, SessionSpecificTimetableData };

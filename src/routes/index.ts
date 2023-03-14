@@ -1,5 +1,5 @@
 import Express from "express";
-import Client from "../types/client";
+import Client from "../types/Client";
 import createAuthRouter from "./auth";
 import cookieParser from "cookie-parser";
 

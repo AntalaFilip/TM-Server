@@ -2,7 +2,6 @@ import { gql } from "apollo-server-express";
 
 const typeDefs = gql`
 	scalar Date
-	scalar Long
 
 	type Query {
 		stations(realm: ID!): [Station]
@@ -23,19 +22,25 @@ const typeDefs = gql`
 		timetables(realm: ID!): [Timetable]
 		timetable(realm: ID!, id: ID!): Timetable
 
+		sessions(realm: ID!): [Session]!
+		session(realm: ID!, id: ID!): Session
+
+		arrDepSets(realm: ID!, session: ID!): [ArrDepSet]!
+		arrDepSet(realm: ID!, session: ID!, id: ID!): ArrDepSet
+
 		users(disabled: Boolean): [User]!
 		user(id: ID!): User
 
 		realms: [Realm]!
 		realm(id: ID!): Realm
 
-		time(realm: ID!): RealmTime
+		time(realm: ID!, session: ID!): Time
 	}
 
 	type Mutation {
 		addStation(realm: ID!, input: StationInput!): Station!
 		modStation(realm: ID!, station: ID!, input: StationInput!): Station!
-		setStationDispatcher(realm: ID!, station: ID!, dispatcher: ID): Station!
+		setStationDispatcher(realm: ID!, station: ID!, session: ID!, dispatcher: ID): Station!
 
 		addStationTrack(
 			realm: ID!
@@ -53,6 +58,7 @@ const typeDefs = gql`
 		modTrain(realm: ID!, train: ID!, input: TrainInput!): Train!
 		stateTrain(
 			realm: ID!
+			session: ID!
 			train: ID!
 			state: TrainState!
 			override: Boolean
@@ -77,7 +83,7 @@ const typeDefs = gql`
 			timetable: ID!
 			input: TimetableInput!
 		): Timetable!
-		activeTimetable(realm: ID!, timetable: ID!): Boolean!
+		#activeTimetable(realm: ID!, timetable: ID!): Boolean!
 
 		addTimetableEntry(
 			realm: ID!
@@ -97,8 +103,8 @@ const typeDefs = gql`
 		addRealm(input: RealmInput!): Realm!
 		modRealm(realm: ID!, input: RealmInput!): Realm!
 
-		modRealmTime(realm: ID!, input: RealmTimeInput!): RealmTime!
-		pauseRealmTime(realm: ID!, state: Boolean!): RealmTime!
+		modTime(realm: ID!, session: ID!, input: TimeInput!): Time!
+		pauseTime(realm: ID!, session: ID!, state: Boolean!): Time!
 	}
 
 	type Station {
@@ -107,8 +113,13 @@ const typeDefs = gql`
 		name: String!
 		short: String!
 		stationType: StationType!
-		dispatcher: User
 		tracks: [StationTrack]!
+		sessionData: [StationSessionData]!
+	}
+	type StationSessionData {
+		id: ID!
+		session: Session!
+		dispatcher: User
 		trains: [Train]!
 	}
 	input StationInput {
@@ -130,6 +141,11 @@ const typeDefs = gql`
 		usedForParking: Boolean!
 		length: Int
 		station: Station!
+		sessionData: [StationTrackSessionData]!
+	}
+	type StationTrackSessionData {
+		id: ID!
+		session: Session!
 		currentTrain: Train
 	}
 	input StationTrackInput {
@@ -144,13 +160,16 @@ const typeDefs = gql`
 		realm: Realm!
 		name: String!
 		short: String!
+		sessionData: [TrainSessionData]!
+	}
+	type TrainSessionData {
+		id: ID!
+		session: Session!
 		state: TrainState!
 		locomotive: Locomotive
 		location: MovableLocation
-		currentEntry: TimetableEntry
-		nextEntry: TimetableEntry
-		arrDepSet: ArrDepSet
-		entries: [TimetableEntry]!
+		currentADS: ArrDepSet
+		nextADS: ArrDepSet
 		trainSets: [TrainSet]!
 	}
 	input TrainInput {
@@ -169,10 +188,21 @@ const typeDefs = gql`
 		LEAVING
 	}
 	type ArrDepSet {
-		arrival: Date!
-		departure: Date
-		no: Int!
-		delay: Int!
+		id: ID!
+		session: Session!
+		entry: TimetableEntry
+
+		scheduledArrival: Date!
+		actualArrival: Date
+		scheduledDeparture: Date!
+		actualDeparture: Date
+		cancelled: Boolean!
+
+		train: Train!
+		station: Station!
+		track: StationTrack!
+		locomotive: Locomotive!
+		sets: [TrainSet]!
 	}
 
 	type TrainSet {
@@ -187,6 +217,16 @@ const typeDefs = gql`
 		components: [ID!]!
 	}
 
+	type Session {
+		id: ID!
+		realm: Realm!
+		started: Date!
+		ended: Date
+		active: Boolean!
+		time: Time!
+		arrDepSets: [ArrDepSet]!
+	}
+
 	interface Movable {
 		id: ID!
 		realm: Realm!
@@ -196,9 +236,14 @@ const typeDefs = gql`
 		type: MovableType
 		length: Int
 		maxSpeed: Int
+		owner: User
+		sessionData: [MovableSessionData]!
+	}
+	interface MovableSessionData {
+		id: ID!
+		session: Session!
 		currentLocation: MovableLocation
 		currentTrain: Train
-		owner: User
 	}
 	type MovableLocation {
 		station: Station!
@@ -222,10 +267,15 @@ const typeDefs = gql`
 		type: MovableType
 		length: Int
 		maxSpeed: Int
+		owner: User
+		sessionData: [LocomotiveSessionData]!
+	}
+	type LocomotiveSessionData implements MovableSessionData {
+		id: ID!
+		session: Session!
 		currentLocation: MovableLocation
 		currentTrain: Train
 		controller: User
-		owner: User
 	}
 	input LocomotiveInput {
 		model: String!
@@ -248,9 +298,14 @@ const typeDefs = gql`
 		type: MovableType
 		length: Int
 		maxSpeed: Int
+		owner: User
+		sessionData: [WagonSessionData]!
+	}
+	type WagonSessionData implements MovableSessionData {
+		id: ID!
+		session: Session!
 		currentLocation: MovableLocation
 		currentTrain: Train
-		owner: User
 	}
 	input WagonInput {
 		model: String!
@@ -271,19 +326,13 @@ const typeDefs = gql`
 		id: ID!
 		realm: Realm!
 		name: String!
-		genCount: Int!
 		checksPassing: Boolean!
-		inUse: Boolean!
+		#inUse: Boolean!
 		entries: [TimetableEntry]!
 	}
 	input TimetableInput {
 		name: String!
 		genCount: Int!
-	}
-
-	type ArrDepSetDelay {
-		ads: ArrDepSet!
-		delay: Int!
 	}
 
 	type TimetableEntry {
@@ -300,10 +349,6 @@ const typeDefs = gql`
 		duration: Int!
 		track: StationTrack!
 		sets: [TrainSet]!
-		times: [ArrDepSet]!
-		adsCount: Int!
-		cancelledAds: [ArrDepSet]!
-		delayedAds: [ArrDepSetDelay]!
 	}
 	input TimetableEntryInput {
 		train: ID!
@@ -374,16 +419,16 @@ const typeDefs = gql`
 		name: String!
 	}
 
-	type RealmTime {
-		startPoint: Long!
-		speedModifier: Long!
-		trueElapsed: Long!
-		elapsed: Long!
+	type Time {
+		startPoint: Float!
+		speedModifier: Int!
+		trueElapsed: Float!
+		elapsed: Float!
 		running: Boolean!
 		restricted: Boolean!
 	}
-	input RealmTimeInput {
-		startPoint: Long
+	input TimeInput {
+		startPoint: Float
 		speedModifier: Int
 		running: Boolean
 		restricted: Boolean

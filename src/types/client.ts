@@ -1,16 +1,16 @@
 import { Server as SIOServer } from "socket.io";
 import http from "http";
 import Collection from "@discordjs/collection";
-import Realm, { RealmOptions } from "./realm";
+import Realm, { RealmOptions } from "./Realm";
 import { ResourceData } from "../managers/ResourceManager";
 import Redis from "../helpers/redis";
 import UserManager from "../managers/UserManager";
 import { Application } from "express";
 import createIndexRouter from "../routes";
-import User from "./user";
+import User from "./User";
 import { ForbiddenError } from "apollo-server-core";
 import TMLogger from "../helpers/logger";
-import TMError from "./tmerror";
+import TMError from "./TMError";
 
 interface ClientOptions {
 	io: SIOServer;

@@ -3,7 +3,7 @@ import http from "http";
 import { createSIOServer } from "./helpers/sio";
 import { config as env } from "dotenv";
 import path from "path";
-import Client from "./types/client";
+import Client from "./types/Client";
 import { ApolloServer } from "apollo-server-express";
 import { ApolloServerPluginDrainHttpServer } from "apollo-server-core";
 import createGQLResolvers from "./resolvers";
@@ -20,7 +20,14 @@ const logger = new TMLogger(`STARTUP`);
 async function main() {
 	logger.debug(`Creating HTTP and WS/SIO services...`);
 	const app = Express();
-	app.use(cors({ origin: "http://localhost:3000" }));
+	app.use(
+		cors({
+			origin: [
+				"http://localhost:3000",
+				"https://studio.apollographql.com",
+			],
+		})
+	);
 	const server = http.createServer(app);
 
 	// Make a new Socket.IO Server instance and bind it to the HTTP server
@@ -61,7 +68,12 @@ async function main() {
 	await apollo.start();
 	apollo.applyMiddleware({
 		app,
-		cors: { origin: "http://localhost:3000" },
+		cors: {
+			origin: [
+				"http://localhost:3000",
+				"https://studio.apollographql.com",
+			],
+		},
 		path: "/api/graphql",
 	});
 

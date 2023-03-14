@@ -1,15 +1,15 @@
 import Collection from "@discordjs/collection";
-import Movable from "../types/movable";
-import Realm from "../types/realm";
-import TMError from "../types/tmerror";
+import Movable from "../types/Movable";
+import Realm from "../types/Realm";
+import TMError from "../types/TMError";
 import TrainSet, {
 	TrainSetOptions,
 	TrainSetOptionsMetadata,
-} from "../types/trainset";
-import User from "../types/user";
+} from "../types/TrainSet";
+import User from "../types/User";
 import ResourceManager from "./ResourceManager";
 
-class TrainSetManager extends ResourceManager {
+class TrainSetManager extends ResourceManager<false> {
 	public readonly trainsets: Collection<string, TrainSet>;
 	public readonly ready: Promise<void>;
 

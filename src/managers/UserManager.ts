@@ -1,7 +1,7 @@
-import Client from "../types/client";
+import Client from "../types/Client";
 import BaseManager from "../managers/BaseManager";
 import { ResourceData } from "./ResourceManager";
-import User, { UserConstructorOptions, UserOptions } from "../types/user";
+import User, { UserConstructorOptions, UserOptions } from "../types/User";
 import Collection from "@discordjs/collection";
 import crypto from "crypto";
 import { ForbiddenError } from "apollo-server-core";
