@@ -1,41 +1,43 @@
-import { newUUID } from "../helpers/id";
-import BaseManager from "../managers/BaseManager";
-import ResourceManager from "../managers/ResourceManager";
-import Realm from "./realm";
-import User from "./user";
+import {
+	BaseManager,
+	newUUID,
+	Session,
+	SessionResourceManager,
+	User,
+	UserLink,
+} from "../internal";
 
-interface ResourceOptions<M extends ManagerType = ResourceManager> {
+interface ResourceOptions<M extends ManagerType = SessionResourceManager> {
 	id: string;
-	realmId: RealmIdType<M>;
+	sessionId: SessionIdType<M>;
 	managerId: M extends null ? null : string;
 }
 
-type ResourceContructorOptions<M extends ManagerType = ResourceManager> = Omit<
-	ResourceOptions<M>,
-	"id"
-> & { id?: string };
+type ResourceContructorOptions<M extends ManagerType = SessionResourceManager> =
+	Omit<ResourceOptions<M>, "id"> & { id?: string };
 
-type ManagerType = ResourceManager | BaseManager | null;
-type RealmType<M> = M extends ResourceManager ? Realm : null;
-type RealmIdType<M> = M extends ResourceManager ? string : null;
+type ManagerType = SessionResourceManager | BaseManager | null;
+type SessionType<M> = M extends SessionResourceManager ? Session : null;
+type SessionIdType<M> = M extends SessionResourceManager ? string : null;
+type UserType<M> = M extends SessionResourceManager ? UserLink : User;
 
-abstract class Resource<M extends ManagerType = ResourceManager> {
+abstract class Resource<M extends ManagerType = SessionResourceManager> {
 	public readonly id: string;
 	public readonly shortId: string;
-	public readonly realmId: RealmIdType<M>;
+	public readonly sessionId: SessionIdType<M>;
 	public readonly type: string;
 
-	public get realm(): RealmType<M> {
-		if (this.manager instanceof ResourceManager)
-			return this.manager.realm as RealmType<M>;
-		else return null as RealmType<M>;
+	public get session(): SessionType<M> {
+		if (this.manager instanceof SessionResourceManager)
+			return this.manager.session as SessionType<M>;
+		else return null as SessionType<M>;
 	}
 
 	public readonly managerId: M extends null ? null : string;
 	public get manager(): M {
 		if (typeof this.managerId === "string") {
 			const manager =
-				ResourceManager.get(this.managerId) ??
+				SessionResourceManager.get(this.managerId, false) ??
 				BaseManager.get(this.managerId);
 			if (!manager) throw new Error("Bad manager");
 			return manager as M;
@@ -45,7 +47,7 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 	constructor(type: string, options: ResourceContructorOptions<M>) {
 		this.id = options.id ?? newUUID();
 		this.shortId = this.id.slice(this.id.length - 6);
-		this.realmId = options.realmId;
+		this.sessionId = options.sessionId;
 		this.managerId = options.managerId;
 		this.type = type;
 	}
@@ -59,14 +61,14 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 	 */
 	protected propertyChange(prop: string, value: unknown, noSave = false) {
 		if (!noSave) this.save();
-		const i = this.realm?.ionsp ?? this.manager?.client.io;
+		const i = this.session?.ionsp ?? this.manager?.client.io;
 		if (!i) return false;
 		return i.emit("propertyChange", this.id, this.type, prop, value);
 	}
 
 	abstract modify(
 		data: Record<string, unknown>,
-		actor?: User
+		actor?: UserType<M>
 	): boolean | Promise<boolean>;
 	abstract save(): boolean | Promise<boolean>;
 	/** Returns metadata required to reconstruct the Resource */
@@ -77,6 +79,10 @@ abstract class Resource<M extends ManagerType = ResourceManager> {
 	abstract fullMetadata(): ResourceOptions<M>;
 }
 
-export default Resource;
-export type { ManagerType, RealmType, RealmIdType, ResourceContructorOptions };
-export { ResourceOptions };
+export type {
+	ManagerType,
+	SessionType,
+	SessionIdType,
+	ResourceContructorOptions,
+};
+export { Resource, ResourceOptions };

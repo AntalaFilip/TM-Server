@@ -1,10 +1,13 @@
 import Express from "express";
-import { authenticate, TMAuthRequest } from "../../middleware/httpauth";
-import Client from "../../types/client";
-import login from "./login";
-import register from "./register";
+import {
+	authenticate,
+	login,
+	Manager,
+	register,
+	TMAuthRequest,
+} from "../../internal";
 
-function createAuthRouter(client: Client) {
+function createAuthRouter(client: Manager) {
 	const router = Express.Router();
 	router.use(Express.urlencoded({ extended: true }));
 
@@ -33,4 +36,4 @@ function createAuthRouter(client: Client) {
 	return router;
 }
 
-export default createAuthRouter;
+export { createAuthRouter };

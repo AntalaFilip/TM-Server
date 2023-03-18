@@ -21,4 +21,4 @@ const DateScalar = new GraphQLScalarType({
 	},
 });
 
-export default DateScalar;
+export { DateScalar };

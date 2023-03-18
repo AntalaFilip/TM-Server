@@ -1,16 +1,21 @@
 import Collection from "@discordjs/collection";
-import Realm from "../types/realm";
-import TMError from "../types/tmerror";
-import Train, { TrainOptions, TrainOptionsMetadata } from "../types/train";
-import TrainSet from "../types/trainset";
-import User from "../types/user";
-import ResourceManager from "./ResourceManager";
+import {
+	Session,
+	SessionResourceManager,
+	TMError,
+	Train,
+	TrainOptions,
+	TrainOptionsMetadata,
+	TrainSet,
+	User,
+	UserLink,
+} from "../internal";
 
-class TrainManager extends ResourceManager {
+class TrainManager extends SessionResourceManager {
 	public readonly trains: Collection<string, Train>;
 	public readonly ready: Promise<void>;
 
-	constructor(realm: Realm) {
+	constructor(realm: Session) {
 		super(realm, `trains`);
 
 		this.trains = new Collection();
@@ -22,8 +27,13 @@ class TrainManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): Train | undefined {
-		return this.trains.get(id);
+	get(id: string, error: true): Train;
+	get(id: string): Train | undefined;
+	get(id: string, error?: boolean): unknown {
+		const l = this.trains.get(id);
+		if (!l && error)
+			throw new TMError(`EINVALIDINPUT`, `Invalid input ID!`);
+		return l;
 	}
 	getOne(id: string) {
 		return this.get(id)?.fullMetadata();
@@ -40,9 +50,11 @@ class TrainManager extends ResourceManager {
 		return new Train(trainMeta);
 	}
 
-	async create(resource: Train | TrainOptions, actor?: User): Promise<Train> {
-		if (actor && !actor.hasPermission("manage trains", this.realm))
-			throw new Error("No permission!");
+	async create(
+		resource: Train | TrainOptions,
+		actor?: UserLink
+	): Promise<Train> {
+		actor && User.checkPermission(actor.user, "manage trains");
 
 		if (!(resource instanceof Train)) {
 			resource = new Train(resource);
@@ -59,9 +71,9 @@ class TrainManager extends ResourceManager {
 	}
 
 	private async createAllFromStore() {
-		await this.realm.stationManager.ready;
-		await this.realm.movableManager.ready;
-		await this.realm.trainSetManager.ready;
+		await this.session.stationLinkManager.ready;
+		await this.session.movableLinkManager.ready;
+		await this.session.trainSetManager.ready;
 
 		const allTrains = await this.db.redis.hgetall(this.id);
 		const arr = Object.entries(allTrains);
@@ -70,24 +82,32 @@ class TrainManager extends ResourceManager {
 				const v = JSON.parse(r[1]) as TrainOptionsMetadata;
 				const locStat =
 					v.location &&
-					this.realm.stationManager.get(v.location.stationId);
+					this.session.stationLinkManager.get(
+						v.location.stationLinkId
+					);
 				const location =
 					locStat && v.location
 						? {
-								station: locStat,
-								track: v.location.trackId
-									? locStat.tracks.get(v.location.trackId)
+								stationLink: locStat,
+								trackLink: v.location.trackLinkId
+									? locStat.trackLinks.get(
+											v.location.trackLinkId
+									  )
 									: undefined,
 						  }
 						: undefined;
 
-				const locomotive = v.locomotiveId
-					? this.realm.movableManager.getLoco(v.locomotiveId)
+				const locomotive = v.locomotiveLinkId
+					? this.session.movableLinkManager.getLocoLink(
+							v.locomotiveLinkId
+					  )
 					: undefined;
 
 				const trainSets = v.trainSetIds
-					?.map((s) => this.realm.trainSetManager.get(s))
-					.filter((s) => s instanceof TrainSet) as TrainSet[] | undefined;
+					?.map((s) => this.session.trainSetManager.get(s))
+					.filter((s) => s instanceof TrainSet) as
+					| TrainSet[]
+					| undefined;
 
 				if (trainSets?.length !== v.trainSetIds?.length)
 					throw new TMError(
@@ -108,4 +128,4 @@ class TrainManager extends ResourceManager {
 	}
 }
 
-export default TrainManager;
+export { TrainManager };

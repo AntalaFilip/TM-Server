@@ -51,4 +51,4 @@ class Redis {
 	}
 }
 
-export default Redis;
+export { Redis };

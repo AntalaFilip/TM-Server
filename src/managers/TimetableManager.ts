@@ -1,17 +1,21 @@
 import Collection from "@discordjs/collection";
-import { ForbiddenError } from "apollo-server-core";
-import TimetableEntry, { TimetableEntryOptions } from "../types/entry";
-import Realm from "../types/realm";
-import Timetable, { TimetableOptions } from "../types/timetable";
-import TMError from "../types/tmerror";
-import User from "../types/user";
-import ResourceManager from "./ResourceManager";
+import {
+	Session,
+	SessionResourceManager,
+	Timetable,
+	TimetableEntry,
+	TimetableEntryOptions,
+	TimetableOptions,
+	TMError,
+	User,
+	UserLink,
+} from "../internal";
 
-class TimetableManager extends ResourceManager {
+class TimetableManager extends SessionResourceManager {
 	public readonly timetables: Collection<string, Timetable>;
 	public readonly ready: Promise<void>;
 
-	constructor(realm: Realm) {
+	constructor(realm: Session) {
 		super(realm, `timetables`);
 
 		this.timetables = new Collection();
@@ -22,7 +26,7 @@ class TimetableManager extends ResourceManager {
 					`Ready; loaded ${
 						this.timetables.size
 					} timetables. Current active timetable: ${
-						this.realm.activeTimetable?.name ?? "none"
+						this.session.activeTimetable?.name ?? "none"
 					}`
 				);
 				res();
@@ -30,8 +34,13 @@ class TimetableManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): Timetable | undefined {
-		return this.timetables.get(id);
+	get(id: string, error: true): Timetable;
+	get(id: string, error?: boolean): Timetable | undefined;
+	get(id: string, error?: boolean): unknown {
+		const l = this.timetables.get(id);
+		if (!l && error)
+			throw new TMError(`EINVALIDINPUT`, `Invalid input ID!`);
+		return l;
 	}
 	getOne(id: string) {
 		return this.get(id)?.fullMetadata();
@@ -58,13 +67,10 @@ class TimetableManager extends ResourceManager {
 
 	async create(
 		resource: Timetable | TimetableOptions,
-		actor?: User
+		actor?: UserLink
 	): Promise<Timetable> {
-		if (actor && !actor.hasPermission("manage timetables", this.realm))
-			throw new ForbiddenError(`No permission!`, {
-				tmCode: `ENOPERM`,
-				permission: `manage timetables`,
-			});
+		actor &&
+			User.checkPermission(actor.user, "manage timetables", this.session);
 
 		if (!(resource instanceof Timetable)) {
 			resource = new Timetable(resource);
@@ -107,4 +113,4 @@ class TimetableManager extends ResourceManager {
 	}
 }
 
-export default TimetableManager;
+export { TimetableManager };

@@ -1,115 +1,135 @@
-import { gql } from "apollo-server-express";
-
-const typeDefs = gql`
+const typeDefs = `#graphql
 	scalar Date
-	scalar Long
 
 	type Query {
-		stations(realm: ID!): [Station]
-		station(realm: ID!, id: ID!): Station
+		stations: [Station]
+		station(id: ID!): Station
+		stationLink(id: ID!, session: ID!): StationLink
 
-		trains(realm: ID!): [Train]
-		train(realm: ID!, id: ID!): Train
+		trains(session: ID!): [Train]
+		train(session: ID!, id: ID!): Train
 
-		trainSets(realm: ID!): [TrainSet]
-		trainSet(realm: ID!, id: ID!): TrainSet
+		trainSets(session: ID!): [TrainSet]
+		trainSet(session: ID!, id: ID!): TrainSet
 
-		locomotives(realm: ID!): [Locomotive]
-		locomotive(realm: ID!, id: ID!): Locomotive
+		locomotives: [Locomotive]
+		locomotive(id: ID!): Locomotive
+		locomotiveLink(id: ID!, session: ID!): LocomotiveLink
 
-		wagons(realm: ID!): [Wagon]
-		wagon(realm: ID!, id: ID!): Wagon
+		wagons: [Wagon]
+		wagon(id: ID!): Wagon
+		wagonLink(id: ID!, session: ID!): WagonLink
 
-		timetables(realm: ID!): [Timetable]
-		timetable(realm: ID!, id: ID!): Timetable
+		timetables(session: ID!): [Timetable]
+		timetable(session: ID!, id: ID!): Timetable
+
+		arrDepSets(session: ID!): [ArrDepSet]
+		arrDepSet(session: ID!, id: ID!): ArrDepSet
 
 		users(disabled: Boolean): [User]!
 		user(id: ID!): User
 
-		realms: [Realm]!
-		realm(id: ID!): Realm
+		sessions: [Session]!
+		session(id: ID!): Session
 
-		time(realm: ID!): RealmTime
+		actions(session: ID!): [Action]!
+		action(session: ID!, id: ID!): Action
+
+		time(session: ID!): SessionTime
 	}
 
 	type Mutation {
-		addStation(realm: ID!, input: StationInput!): Station!
-		modStation(realm: ID!, station: ID!, input: StationInput!): Station!
-		setStationDispatcher(realm: ID!, station: ID!, dispatcher: ID): Station!
+		addStation(input: StationInput!): Station!
+		modStation(station: ID!, input: StationInput!): Station!
+		setStationDispatcher(session: ID!, station: ID!, dispatcher: ID): Station!
+		linkStation(station: ID!, session: ID!, tracks: [ID!]): StationLink!
 
 		addStationTrack(
-			realm: ID!
 			station: ID!
 			input: StationTrackInput!
 		): StationTrack!
 		modStationTrack(
-			realm: ID!
 			station: ID!
 			track: ID!
 			input: StationTrackInput!
 		): StationTrack!
+		linkStationTrack(station: ID!, track: ID!, session: ID!): StationTrackLink!
 
-		addTrain(realm: ID!, input: TrainInput!): Train!
-		modTrain(realm: ID!, train: ID!, input: TrainInput!): Train!
+		addTrain(session: ID!, input: TrainInput!): Train!
+		modTrain(session: ID!, train: ID!, input: TrainInput!): Train!
 		stateTrain(
-			realm: ID!
+			session: ID!
 			train: ID!
 			state: TrainState!
 			override: Boolean
 		): Train!
+		#foundTrain(session: ID!, train: ID!, input: TrainFoundInput!): Train!
 
-		addTrainSet(realm: ID!, input: TrainSetInput!): TrainSet!
-		modTrainSet(realm: ID!, trainSet: ID!, input: TrainSetInput!): TrainSet!
+		addTrainSet(session: ID!, input: TrainSetInput!): TrainSet!
+		modTrainSet(session: ID!, trainSet: ID!, input: TrainSetInput!): TrainSet!
 
-		addLocomotive(realm: ID!, input: LocomotiveInput!): Locomotive!
+		addLocomotive(input: LocomotiveInput!): Locomotive!
 		modLocomotive(
-			realm: ID!
 			locomotive: ID!
 			input: LocomotiveInput!
 		): Locomotive!
+		linkLocomotive(locomotive: ID!, session: ID!): LocomotiveLink!
 
-		addWagon(realm: ID!, input: WagonInput!): Wagon!
-		modWagon(realm: ID!, wagon: ID!, input: WagonInput!): Wagon!
+		addWagon(input: WagonInput!): Wagon!
+		modWagon(wagon: ID!, input: WagonInput!): Wagon!
+		linkWagon(wagon: ID!, session: ID!): WagonLink!
 
-		addTimetable(realm: ID!, input: TimetableInput!): Timetable!
+		addTimetable(session: ID!, input: TimetableInput!): Timetable!
 		modTimetable(
-			realm: ID!
+			session: ID!
 			timetable: ID!
 			input: TimetableInput!
 		): Timetable!
-		activeTimetable(realm: ID!, timetable: ID!): Boolean!
+		activeTimetable(session: ID!, timetable: ID!): Boolean!
+		regenerateTimetableADS(session: ID!, timetable: ID!, from: Date): [ArrDepSet]!
 
 		addTimetableEntry(
-			realm: ID!
+			session: ID!
 			timetable: ID!
 			input: TimetableEntryInput!
 		): TimetableEntry!
 		modTimetableEntry(
-			realm: ID!
+			session: ID!
 			timetable: ID!
 			entry: ID!
 			input: TimetableEntryInput!
 		): TimetableEntry!
 
+		addArrDepSet(session: ID!, input: ArrDepSetInput!): ArrDepSet!
+		modArrDepSet(session: ID!, arrdepset: ID!, input: ArrDepSetInput!): ArrDepSet!
+		cancelArrDepSet(session: ID!, arrdepset: ID!, reason: String!): ArrDepSet!
+		delayArrDepSet(session: ID!, arrdepset: ID!, delay: Int!, type: ADSDelayType!): ArrDepSet!
+
 		addUser(input: UserInput!): User!
 		modUser(user: ID!, input: UserModInput!): User!
+		linkUser(user: ID!, session: ID!): UserLink!
 
-		addRealm(input: RealmInput!): Realm!
-		modRealm(realm: ID!, input: RealmInput!): Realm!
+		addSession(input: SessionInput!): Session!
+		modSession(session: ID!, input: SessionInput!): Session!
 
-		modRealmTime(realm: ID!, input: RealmTimeInput!): RealmTime!
-		pauseRealmTime(realm: ID!, state: Boolean!): RealmTime!
+		modSessionTime(session: ID!, input: SessionTimeInput!): SessionTime!
+		pauseSessionTime(session: ID!, state: Boolean!): SessionTime!
 	}
 
 	type Station {
 		id: ID!
-		realm: Realm!
 		name: String!
 		short: String!
 		stationType: StationType!
-		dispatcher: User
 		tracks: [StationTrack]!
+	}
+	type StationLink {
+		id: ID!
+		session: Session!
+		station: Station!
+		dispatcher: User
 		trains: [Train]!
+		trackLinks: [StationTrackLink]!
 	}
 	input StationInput {
 		name: String!
@@ -124,12 +144,16 @@ const typeDefs = gql`
 
 	type StationTrack {
 		id: ID!
-		realm: Realm!
 		name: String!
 		short: String!
 		usedForParking: Boolean!
 		length: Int
 		station: Station!
+	}
+	type StationTrackLink {
+		id: ID!
+		session: Session!
+		track: StationTrack!
 		currentTrain: Train
 	}
 	input StationTrackInput {
@@ -141,15 +165,15 @@ const typeDefs = gql`
 
 	type Train {
 		id: ID!
-		realm: Realm!
+		session: Session!
 		name: String!
 		short: String!
 		state: TrainState!
-		locomotive: Locomotive
+		locomotiveLink: LocomotiveLink
 		location: MovableLocation
 		currentEntry: TimetableEntry
-		nextEntry: TimetableEntry
-		arrDepSet: ArrDepSet
+		currentADS: ArrDepSet
+		nextADS: ArrDepSet
 		entries: [TimetableEntry]!
 		trainSets: [TrainSet]!
 	}
@@ -157,29 +181,88 @@ const typeDefs = gql`
 		name: String!
 		short: String!
 		state: TrainState
-		locomotive: ID
+		locomotiveLink: ID
 		trainSets: [ID!]
 		location: MovableLocationInput
 	}
 	enum TrainState {
 		MISSING
 		MOVING
+		ALLOCATED
 		ARRIVED
 		READY
 		LEAVING
 	}
-	type ArrDepSet {
-		arrival: Date!
-		departure: Date
-		no: Int!
-		delay: Int!
+	enum ActionSubjectType {
+		TRAIN
+		LOCOMOTIVELINK
+		WAGONLINK
+	}
+	union ActionSubject = Train | LocomotiveLink | WagonLink
+	interface Action {
+		session: Session!
+		id: ID!
+		from: Date!
+		to: Date!
+		cancelled: Boolean!
+		cancelledReason: String
+		usable: Boolean!
+		subjectId: String!
+		subjectType: ActionSubjectType!
+		subject: ActionSubject!
+	}
+	type ArrDepSet implements Action {
+		id: ID!
+		session: Session!
+		timetable: Timetable
+		entry: TimetableEntry
+
+		cancelled: Boolean!
+		cancelledReason: String
+		usable: Boolean!
+		subjectId: String!
+		subjectType: ActionSubjectType!
+		subject: Train!
+
+		from: Date!
+		to: Date!
+		scheduledArrival: Date!
+		scheduledDeparture: Date!
+		actualArrival: Date
+		actualDeparture: Date
+		arrivalDelay: Int!
+		departureDelay: Int!
+
+		train: Train!
+		stationLink: StationLink!
+		trackLink: StationTrackLink!
+		locomotiveLink: Locomotive!
+		sets: [TrainSet]!
+	}
+	input ArrDepSetInput {
+		scheduledArrival: Date!
+		scheduledDeparture: Date!
+		actualArrival: Date
+		actualDeparture: Date
+		arrivalDelay: Int!
+		departureDelay: Int!
+
+		trainId: ID!
+		stationLinkId: ID!
+		trackLinkId: ID!
+		locomotiveLinkId: ID!
+		setIds: [ID]!
+	}
+	enum ADSDelayType {
+		ARRIVAL
+		DEPARTURE
 	}
 
 	type TrainSet {
 		id: ID!
-		realm: Realm!
+		session: Session!
 		name: String!
-		components: [Movable]!
+		components: [MovableLink]!
 		trains: [Train]!
 	}
 	input TrainSetInput {
@@ -189,24 +272,28 @@ const typeDefs = gql`
 
 	interface Movable {
 		id: ID!
-		realm: Realm!
 		model: String!
 		couplerType: String!
 		name: String
 		type: MovableType
 		length: Int
 		maxSpeed: Int
+		owner: User!
+	}
+	interface MovableLink {
+		id: ID!
+		session: Session!
+		movable: Movable!
 		currentLocation: MovableLocation
 		currentTrain: Train
-		owner: User
 	}
 	type MovableLocation {
-		station: Station!
-		track: StationTrack
+		stationLink: StationLink!
+		trackLink: StationTrackLink
 	}
 	input MovableLocationInput {
-		station: ID!
-		track: ID
+		stationLink: ID!
+		trackLink: ID
 	}
 	enum MovableType {
 		LOCOMOTIVE
@@ -215,17 +302,21 @@ const typeDefs = gql`
 
 	type Locomotive implements Movable {
 		id: ID!
-		realm: Realm!
 		model: String!
 		couplerType: String!
 		name: String
 		type: MovableType
 		length: Int
 		maxSpeed: Int
+		owner: User!
+	}
+	type LocomotiveLink implements MovableLink {
+		id: ID!
+		session: Session!
+		movable: Locomotive!
 		currentLocation: MovableLocation
 		currentTrain: Train
 		controller: User
-		owner: User
 	}
 	input LocomotiveInput {
 		model: String!
@@ -240,7 +331,6 @@ const typeDefs = gql`
 
 	type Wagon implements Movable {
 		id: ID!
-		realm: Realm!
 		model: String!
 		couplerType: String!
 		wagonType: WagonType!
@@ -248,9 +338,14 @@ const typeDefs = gql`
 		type: MovableType
 		length: Int
 		maxSpeed: Int
+		owner: User!
+	}
+	type WagonLink implements MovableLink {
+		id: ID!
+		session: Session!
+		movable: Wagon!
 		currentLocation: MovableLocation
 		currentTrain: Train
-		owner: User
 	}
 	input WagonInput {
 		model: String!
@@ -269,7 +364,7 @@ const typeDefs = gql`
 
 	type Timetable {
 		id: ID!
-		realm: Realm!
+		session: Session!
 		name: String!
 		genCount: Int!
 		checksPassing: Boolean!
@@ -281,35 +376,27 @@ const typeDefs = gql`
 		genCount: Int!
 	}
 
-	type ArrDepSetDelay {
-		ads: ArrDepSet!
-		delay: Int!
-	}
-
 	type TimetableEntry {
 		id: ID!
-		realm: Realm!
+		session: Session!
 		timetable: Timetable!
 		train: Train!
-		station: Station!
-		locomotive: Locomotive!
+		stationLink: StationLink!
+		trackLink: StationTrackLink!
+		locomotiveLink: LocomotiveLink!
 		usedFrom: Date!
 		usedTill: Date
 		repeats: Int!
 		start: Date!
 		duration: Int!
-		track: StationTrack!
 		sets: [TrainSet]!
-		times: [ArrDepSet]!
-		adsCount: Int!
-		cancelledAds: [ArrDepSet]!
-		delayedAds: [ArrDepSetDelay]!
+		linkedADS: [ArrDepSet]!
 	}
 	input TimetableEntryInput {
 		train: ID!
-		station: ID!
-		track: ID!
-		locomotive: ID!
+		stationLink: ID!
+		trackLink: ID!
+		locomotiveLink: ID!
 		usedFrom: Date!
 		usedTill: Date
 		repeats: Int!
@@ -327,8 +414,12 @@ const typeDefs = gql`
 		disabled: Boolean!
 		admin: Boolean!
 		permissions: UserPermissions!
-		controlling: [Locomotive]!
-		owning: [Realm]!
+		owning: [Session]!
+	}
+	type UserLink {
+		id: ID!
+		session: Session!
+		controlling: [LocomotiveLink]!
 		dispatching: Station
 	}
 	input UserInput {
@@ -349,45 +440,45 @@ const typeDefs = gql`
 
 	type UserPermissions {
 		global: Int!
-		realm: [RealmUserPermissions]!
+		session: [SessionUserPermissions]!
 	}
 	input UserPermissionsInput {
 		global: Int!
-		realm: [RealmUserPermissionsInput!]
+		session: [SessionUserPermissionsInput!]
 	}
-	type RealmUserPermissions {
-		realm: Realm!
+	type SessionUserPermissions {
+		session: Session!
 		permissions: Int!
 	}
-	input RealmUserPermissionsInput {
-		realm: ID!
+	input SessionUserPermissionsInput {
+		session: ID!
 		permissions: Int!
 	}
 
-	type Realm {
+	type Session {
 		id: ID!
 		name: String!
 		owner: User!
 		activeTimetable: Timetable
 	}
-	input RealmInput {
+	input SessionInput {
 		name: String!
 	}
 
-	type RealmTime {
-		startPoint: Long!
-		speedModifier: Long!
-		trueElapsed: Long!
-		elapsed: Long!
+	type SessionTime {
+		startPoint: Date!
+		speedModifier: Int!
+		trueElapsed: Float!
+		elapsed: Float!
 		running: Boolean!
 		restricted: Boolean!
 	}
-	input RealmTimeInput {
-		startPoint: Long
+	input SessionTimeInput {
+		startPoint: Date
 		speedModifier: Int
 		running: Boolean
 		restricted: Boolean
 	}
 `;
 
-export default typeDefs;
+export { typeDefs };

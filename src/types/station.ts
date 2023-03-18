@@ -1,9 +1,16 @@
-import Resource, { ResourceOptions } from "./resource";
-import StationTrack, { StationTrackOptions } from "./track";
 import Collection from "@discordjs/collection";
-import User from "./user";
-import { ForbiddenError } from "apollo-server-core";
-import TMError from "./tmerror";
+import {
+	Resource,
+	ResourceOptions,
+	StationManager,
+	StationTrack,
+	StationTrackLink,
+	StationTrackLinkOptions,
+	StationTrackOptions,
+	TMError,
+	User,
+	UserLink,
+} from "../internal";
 
 type StationType = "STATION" | "STOP";
 
@@ -11,15 +18,20 @@ function checkStationTypeValidity(toCheck: unknown): toCheck is StationType {
 	return toCheck === "STATION" || toCheck === "STOP";
 }
 
-interface StationOptions extends ResourceOptions {
+interface StationOptions extends ResourceOptions<StationManager> {
 	name: string;
 	short: string;
 	tracks?: StationTrack[];
 	stationType: StationType;
+}
+
+interface StationLinkOptions extends ResourceOptions {
+	stationId: string;
+	trackLinks?: StationTrackLink[];
 	dispatcher?: User;
 }
 
-class Station extends Resource {
+class Station extends Resource<StationManager> {
 	private _name: string;
 	public get name() {
 		return this._name;
@@ -47,34 +59,6 @@ class Station extends Resource {
 		this.propertyChange(`stationType`, type);
 	}
 
-	private _dispatcher?: User;
-	public get dispatcher() {
-		return this._dispatcher;
-	}
-	private set dispatcher(disp: User | undefined) {
-		this._dispatcher = disp;
-		const trueTimestamp = this.realm.timeManager.trueMs;
-		this.manager.db.redis.xadd(
-			this.manager.key(`${this.id}:dispatchers`),
-			"*",
-			"id",
-			disp?.id ?? "",
-			"type",
-			disp?.type ?? "",
-			"time",
-			trueTimestamp
-		);
-		this.propertyChange(`dispatcherId`, disp?.id);
-	}
-
-	public get trains() {
-		return Array.from(
-			this.realm.trainManager.trains
-				.filter((t) => t.location?.station === this)
-				.values()
-		);
-	}
-
 	public readonly tracks: Collection<string, StationTrack>;
 
 	constructor(options: StationOptions) {
@@ -84,17 +68,11 @@ class Station extends Resource {
 		this._short = options.short;
 		this._stationType = options.stationType;
 
-		// TODO: sanity check
-		this._dispatcher = options.dispatcher;
 		this.tracks = new Collection(options.tracks?.map((v) => [v.id, v]));
 	}
 
 	async addTrack(resource: StationTrack | StationTrackOptions, actor?: User) {
-		if (actor && !actor.hasPermission("manage stations", this.realm))
-			throw new ForbiddenError("No permission!", {
-				tmCode: `ENOPERM`,
-				permission: `manage stations`,
-			});
+		actor && User.checkPermission(actor, "manage stations");
 
 		if (!(resource instanceof StationTrack)) {
 			resource = new StationTrack(resource);
@@ -109,54 +87,43 @@ class Station extends Resource {
 		return resource;
 	}
 
+	getTrack(id: string, err: true): StationTrack;
+	getTrack(id: string): StationTrack | undefined;
+	getTrack(id: string, err?: boolean): unknown {
+		const t = this.tracks.get(id);
+		if (!t && err) throw new TMError(`EINVALIDINPUT`, `Invalid input ID!`);
+		return t;
+	}
+
 	metadata(): StationOptions {
 		return {
 			name: this.name,
 			short: this.short,
 			managerId: this.managerId,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			id: this.id,
 			stationType: this.stationType,
 		};
 	}
 
 	publicMetadata() {
-		return {
-			...this.metadata(),
-			dispatcherId: this.dispatcher?.id,
-			trackIds: this.tracks.map((t) => t.id),
-			trainIds: this.trains.map((t) => t.id),
-		};
+		return this.metadata();
 	}
 
 	// GraphQL metadata
 	fullMetadata() {
 		return {
 			...this.metadata(),
-			id: this.id,
 			_self: this,
 		};
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage stations", this.realm))
-			throw new ForbiddenError(`No permission`, {
-				permission: `manage stations`,
-			});
+		User.checkPermission(actor, "manage stations");
 		let modified = false;
 
 		// TODO: auditing
 
-		if (
-			typeof data.dispatcherId === "string" &&
-			this.realm.client.userManager.get(data.dispatcherId)
-		) {
-			this.setDispatcher(
-				this.realm.client.userManager.get(data.dispatcherId),
-				actor
-			);
-			modified = true;
-		}
 		if (typeof data.name === "string") {
 			this.name = data.name;
 			modified = true;
@@ -171,41 +138,6 @@ class Station extends Resource {
 		}
 
 		if (!modified) return false;
-
-		return true;
-	}
-
-	setDispatcher(newDisp: User | undefined, actor: User) {
-		const self = actor.hasPermission("assign self");
-		const others = actor.hasPermission("assign users");
-		// Oh this mess... and it should've been so easy
-		if (
-			// Negate the result, as it's the other way round
-			!(
-				// If is self (start), or is self (end) and has permissions
-				(
-					((newDisp === actor ||
-						(newDisp == undefined && this.dispatcher === actor)) &&
-						(self || others)) ||
-					// Or just has permissions to modify others
-					others
-				)
-			)
-		)
-			throw new ForbiddenError(`No permission`, {
-				permission: "assign self XOR assign users",
-			});
-
-		const already = newDisp?.dispatching;
-		if (already)
-			throw new TMError(
-				`EALREADYDISPATCHING`,
-				`User is already dispatching in another station!`,
-				{ station: already.id }
-			);
-
-		if (newDisp === this.dispatcher) return;
-		this.dispatcher = newDisp;
 
 		return true;
 	}
@@ -234,5 +166,155 @@ class Station extends Resource {
 	}
 }
 
-export default Station;
-export { StationOptions, checkStationTypeValidity };
+class StationLink extends Resource {
+	public readonly stationId: string;
+	public get station() {
+		const s = this.session.client.stationManager.get(this.stationId);
+		if (!s) throw new TMError(`EINTERNAL`);
+		return s;
+	}
+
+	private _dispatcherId?: string;
+	public get dispatcher() {
+		if (!this._dispatcherId) return undefined;
+		const d = this.session.userLinkManager.get(this._dispatcherId);
+		if (!d) throw new TMError(`EINTERNAL`);
+		return d;
+	}
+	private set dispatcher(disp: UserLink | undefined) {
+		this._dispatcherId = disp?.id;
+		const trueTimestamp = this.session.timeManager.trueMs;
+		this.manager.db.redis.xadd(
+			this.manager.key(`${this.id}:dispatchers`),
+			"*",
+			"id",
+			disp?.id ?? "",
+			"type",
+			disp?.type ?? "",
+			"time",
+			trueTimestamp
+		);
+		this.propertyChange(`dispatcherId`, disp?.id);
+	}
+
+	public get trains() {
+		return Array.from(
+			this.session.trainManager.trains
+				.filter((t) => t.location?.stationLink === this)
+				.values()
+		);
+	}
+
+	public readonly trackLinks: Collection<string, StationTrackLink>;
+
+	constructor(options: StationLinkOptions) {
+		super(`stationlink`, options);
+
+		this.stationId = options.stationId;
+		this.trackLinks = new Collection(
+			options.trackLinks?.map((v) => [v.id, v])
+		);
+	}
+
+	setDispatcher(newDisp: UserLink | undefined, actor: UserLink) {
+		// Permission checks
+		const assigningSelf = newDisp === actor;
+		const unassigningSelf =
+			newDisp === undefined && this.dispatcher === actor;
+		const self = assigningSelf || unassigningSelf;
+
+		if (self) User.checkPermission(actor.user, "assign self");
+		else User.checkPermission(actor.user, "assign users");
+
+		const already = newDisp?.dispatching;
+		if (already)
+			throw new TMError(
+				`EALREADYDISPATCHING`,
+				`User is already dispatching in another station!`,
+				{ station: already.id }
+			);
+
+		if (newDisp === this.dispatcher) return;
+		this.dispatcher = newDisp;
+
+		return true;
+	}
+
+	async addTrackLink(
+		resource: StationTrackLink | StationTrackLinkOptions,
+		actor?: UserLink
+	) {
+		actor && User.checkPermission(actor.user, "manage stations");
+
+		if (!(resource instanceof StationTrackLink)) {
+			resource = new StationTrackLink(resource);
+		}
+		if (!(resource instanceof StationTrackLink)) return;
+
+		if (this.trackLinks.has(resource.id))
+			throw new Error(`This TrackLink is already created and assigned!`);
+
+		this.trackLinks.set(resource.id, resource);
+		await resource.save();
+		return resource;
+	}
+	getTrackLink(id: string, error: true): StationTrackLink;
+	getTrackLink(id: string, error?: boolean): StationTrackLink | undefined;
+	getTrackLink(track: StationTrack, error: true): StationTrackLink;
+	getTrackLink(
+		track: StationTrack,
+		error?: boolean
+	): StationTrackLink | undefined;
+	getTrackLink(obj: string | StationTrack, error?: boolean): unknown {
+		const l =
+			typeof obj === "string"
+				? this.trackLinks.get(obj)
+				: this.trackLinks.find((tl) => tl.track === obj);
+		if (!l && error) throw new TMError(`EINVALIDINPUT`, `Invalid input!`);
+		return l;
+	}
+
+	metadata(): StationLinkOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			sessionId: this.sessionId,
+			stationId: this.stationId,
+		};
+	}
+	publicMetadata() {
+		return this.metadata();
+	}
+	fullMetadata() {
+		return this.metadata();
+	}
+
+	modify(): boolean {
+		return false;
+	}
+
+	async save(): Promise<boolean> {
+		await this.manager.db.redis.hset(this.managerId, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
+
+		if (this.trackLinks.size > 0)
+			await this.manager.db.redis.hset(
+				this.manager.key(`${this.id}:tracklinks`),
+				this.trackLinks
+					.map((tr) => [tr.id, JSON.stringify(tr.metadata())])
+					.flat()
+			);
+
+		return true;
+	}
+}
+
+export {
+	Station,
+	StationOptions,
+	checkStationTypeValidity,
+	StationLink,
+	StationLinkOptions,
+};

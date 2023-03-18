@@ -1,39 +1,57 @@
-import TMLogger from "../helpers/logger";
-import Realm from "../types/realm";
-import Resource, { ManagerType, ResourceContructorOptions, ResourceOptions } from "../types/resource";
-import User from "../types/user";
-import BaseManager from "./BaseManager";
+import {
+	BaseManager,
+	ManagerType,
+	Resource,
+	ResourceContructorOptions,
+	ResourceOptions,
+	Session,
+	TMLogger,
+	UserLink,
+} from "../internal";
 
-const managers = new Map<string, ResourceManager>();
+const managers = new Map<string, SessionResourceManager>();
 
-interface ResourceData<M extends ManagerType = ResourceManager> {
-	fromResourceIdentifier(fullId: string): Resource<M> | undefined |  Promise<Resource<M> | undefined>;
-	create(resource: Resource<M> | ResourceContructorOptions<M>): Resource<M> |  Promise<Resource<M>>;
+interface ResourceData<M extends ManagerType = SessionResourceManager> {
+	fromResourceIdentifier(
+		fullId: string
+	): Resource<M> | undefined | Promise<Resource<M> | undefined>;
+	create(
+		resource: Resource<M> | ResourceContructorOptions<M>
+	): Resource<M> | Promise<Resource<M>>;
 	getOne(id: string): ResourceOptions<M> | undefined;
 	getAll(): ResourceOptions<M>[];
 	get(id: string): Resource<M> | undefined;
 }
 
-abstract class ResourceManager extends BaseManager implements ResourceData {
-	readonly realm: Realm;
+abstract class SessionResourceManager
+	extends BaseManager
+	implements ResourceData
+{
+	readonly session: Session;
 	readonly type: string;
 	override readonly logger: TMLogger;
 
-	constructor(realm: Realm, type: string) {
-		super(`realms:${realm.id}:${type}`, realm.ionsp.server, realm.client);
-		this.realm = realm;
+	constructor(session: Session, type: string) {
+		super(
+			`sessions:${session.id}:${type}`,
+			session.ionsp.server,
+			session.client
+		);
+		this.session = session;
 		this.type = type;
 		this.logger = new TMLogger(
-			`${this.type.toUpperCase()}:${this.realm.id}`,
-			`${this.type.toUpperCase()}:${this.realm.shortId}`
+			`${this.type.toUpperCase()}:${this.session.id}`,
+			`${this.type.toUpperCase()}:${this.session.shortId}`
 		);
 
 		managers.set(this.id, this);
 	}
 
-	static get(id: string): ResourceManager {
+	static get(id: string, err?: true): SessionResourceManager;
+	static get(id: string, err: false): SessionResourceManager | undefined;
+	static get(id: string, err = true): unknown {
 		const manager = managers.get(id);
-		if (!manager) throw new Error('Invalid manager');
+		if (!manager && err) throw new Error("Invalid manager");
 		return manager;
 	}
 
@@ -48,13 +66,8 @@ abstract class ResourceManager extends BaseManager implements ResourceData {
 
 	abstract create(
 		resource: Resource | ResourceContructorOptions,
-		actor?: User
+		actor?: UserLink
 	): Resource | Promise<Resource>;
-
-	key(name: string): string {
-		return `${this.id}:${name}`;
-	}
 }
 
-export default ResourceManager;
-export { ResourceData };
+export { SessionResourceManager, ResourceData };

@@ -1,26 +1,36 @@
 import { Namespace as SIONamespace } from "socket.io";
-import TMLogger from "../helpers/logger";
-import Redis from "../helpers/redis";
-import MovableManager from "../managers/MovableManager";
-import StationManager from "../managers/StationManager";
-import TimeManager from "../managers/TimeManager";
-import TimetableManager from "../managers/TimetableManager";
-import TrainManager from "../managers/TrainManager";
-import TrainSetManager from "../managers/TrainSetManager";
-import Client from "./client";
-import Resource, { ResourceOptions } from "./resource";
-import Timetable from "./timetable";
-import User from "./user";
+import {
+	ADSManager,
+	Manager,
+	MovableLinkManager,
+	Redis,
+	Resource,
+	ResourceOptions,
+	StationLinkManager,
+	TimeManager,
+	Timetable,
+	TimetableManager,
+	TMError,
+	TMLogger,
+	TrainManager,
+	TrainSetManager,
+	User,
+	UserLink,
+	UserLinkManager,
+} from "../internal";
 
-interface RealmOptions extends ResourceOptions<null> {
+type SessionState = "SETUP" | "SYSTEM_SETUP" | "READY";
+
+interface SessionOptions extends ResourceOptions<null> {
 	name: string;
 	ownerId: string;
 	ionsp?: SIONamespace;
 	db?: Redis;
 	activeTimetableId?: string;
+	sessionState: SessionState;
 }
 
-class Realm extends Resource<null> {
+class Session extends Resource<null> {
 	public readonly logger: TMLogger;
 
 	private _ownerId: string;
@@ -46,9 +56,18 @@ class Realm extends Resource<null> {
 		this.propertyChange(`name`, name);
 	}
 
+	private _sessionState: SessionState;
+	public get sessionState() {
+		return this._sessionState;
+	}
+	private set sessionState(state: SessionState) {
+		this._sessionState = this.sessionState;
+		this.propertyChange("sessionState", state);
+	}
+
 	public readonly ionsp: SIONamespace;
 	public readonly db: Redis;
-	public readonly client: Client;
+	public readonly client: Manager;
 
 	public override get manager(): null {
 		return null;
@@ -69,39 +88,49 @@ class Realm extends Resource<null> {
 	}
 
 	// Managers
-	public readonly stationManager: StationManager;
 	public readonly timeManager: TimeManager;
 	public readonly trainSetManager: TrainSetManager;
 	public readonly trainManager: TrainManager;
-	public readonly movableManager: MovableManager;
 	public readonly timetableManager: TimetableManager;
+	public readonly userLinkManager: UserLinkManager;
+	public readonly stationLinkManager: StationLinkManager;
+	public readonly movableLinkManager: MovableLinkManager;
+	public readonly aDSManager: ADSManager;
 
-	constructor(client: Client, options: RealmOptions) {
-		super("realm", options);
+	constructor(client: Manager, options: SessionOptions) {
+		super("session", options);
 		this.client = client;
 		this._ownerId = options.ownerId;
 
 		this._name = options.name || this.id;
-		this.ionsp = options.ionsp ?? this.client.io.of(`/realms/${this.id}`);
-		this.db = options.db ?? new Redis(`realms:${this.id}`);
-		this.logger = new TMLogger(`REALM:${this.id}`, `REALM:${this.shortId}`);
+		this.ionsp = options.ionsp ?? this.client.io.of(`/sessions/${this.id}`);
+		this.db = options.db ?? new Redis(`sessions:${this.id}`);
+		this.logger = new TMLogger(
+			`SESSION:${this.id}`,
+			`SESSION:${this.shortId}`
+		);
+		this._sessionState = options.sessionState;
 
-		this.stationManager = new StationManager(this);
 		this.timeManager = new TimeManager(this);
-		this.movableManager = new MovableManager(this);
+		this.movableLinkManager = new MovableLinkManager(this);
 		this.trainSetManager = new TrainSetManager(this);
+		this.stationLinkManager = new StationLinkManager(this);
 		this.trainManager = new TrainManager(this);
 		this.timetableManager = new TimetableManager(this);
+		this.userLinkManager = new UserLinkManager(this);
+		this.aDSManager = new ADSManager(this);
 
 		// eslint-disable-next-line no-async-promise-executor
 		this.ready = new Promise(async (res, rej) => {
 			try {
 				await this.timeManager.ready;
-				await this.stationManager.ready;
 				await this.trainSetManager.ready;
 				await this.trainManager.ready;
-				await this.movableManager.ready;
 				await this.timetableManager.ready;
+				await this.userLinkManager.ready;
+				await this.stationLinkManager.ready;
+				await this.movableLinkManager.ready;
+				await this.aDSManager.ready;
 
 				if (this.activeTimetable) {
 					try {
@@ -115,13 +144,14 @@ class Realm extends Resource<null> {
 							)})! Resetting...`
 						);
 						this._activeTimetableId = undefined;
+						await this.aDSManager.clearTimetableADS();
 						// TODO: notify
 					}
 				}
 
 				await this.save();
 
-				this.logger.info(`Realm (...${this.shortId}) ready!`);
+				this.logger.info(`Session (...${this.shortId}) ready!`);
 				res();
 			} catch (err) {
 				rej(err);
@@ -129,27 +159,53 @@ class Realm extends Resource<null> {
 		});
 	}
 
-	setActiveTimetable(timetable: Timetable) {
+	async setActiveTimetable(timetable: Timetable): Promise<boolean> {
 		if (!timetable.runChecks()) return false;
 		this.logger.verbose(`Setting active timetable (${timetable.id})`);
-
+		const prevState = this.sessionState;
+		this.setSessionState("SYSTEM_SETUP");
 		this.activeTimetableId = timetable.id;
+		await this.aDSManager.regenerateADS();
+
+		this.setSessionState(prevState);
 		return true;
 	}
 
-	metadata(): RealmOptions {
+	setSessionState(state: SessionState, actor?: UserLink) {
+		actor && User.checkPermission(actor.user, "manage sessions", this);
+
+		if (
+			(this.sessionState === "SYSTEM_SETUP" ||
+				state === "SYSTEM_SETUP") &&
+			actor
+		) {
+			throw new TMError(
+				`EFORBIDDEN`,
+				`You may not change system-defined state, it will be done automatically. `
+			);
+		}
+
+		if (state === "SYSTEM_SETUP" || state === "SETUP") {
+			this.timeManager.setRunning(false);
+		}
+
+		this._sessionState = state;
+	}
+
+	metadata(): SessionOptions {
 		return {
 			managerId: this.managerId,
 			name: this.name,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			id: this.id,
 			ownerId: this.ownerId,
 			activeTimetableId: this.activeTimetableId,
+			sessionState: this.sessionState,
 		};
 	}
 
 	async modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage realm", this))
+		if (!actor.hasPermission("manage sessions", this))
 			throw new Error(`No permission`);
 		let modified = false;
 
@@ -193,7 +249,7 @@ class Realm extends Resource<null> {
 	}
 
 	async save(): Promise<boolean> {
-		await this.db.redis.hset("realms", [
+		await this.db.redis.hset("sessions", [
 			this.id,
 			JSON.stringify(this.metadata()),
 		]);
@@ -201,5 +257,4 @@ class Realm extends Resource<null> {
 	}
 }
 
-export default Realm;
-export { RealmOptions };
+export { Session, SessionOptions, SessionState };
