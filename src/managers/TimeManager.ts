@@ -1,10 +1,4 @@
-import {
-	BaseManager,
-	Session,
-	TMLogger,
-	User,
-	UserLink,
-} from "../internal";
+import { BaseManager, Session, TMLogger, User, UserLink } from "../internal";
 
 interface TimeOptions {
 	startPoint: number;
@@ -59,12 +53,12 @@ class TimeManager extends BaseManager {
 		this.save();
 	}
 
-	private _startPoint = NaN;
+	private _startPoint = new Date(0);
 	/** The starting point of true realm time in milliseconds */
 	public get startPoint() {
 		return this._startPoint;
 	}
-	private set startPoint(point: number) {
+	private set startPoint(point: Date) {
 		this.save(false, true);
 		this._startPoint = point;
 		this.save();
@@ -112,7 +106,7 @@ class TimeManager extends BaseManager {
 
 	/** Current true realm-time Date, according to the starting point */
 	public get trueDate() {
-		return new Date(this.trueMs + this.startPoint);
+		return new Date(this.trueMs + this.startPoint.getTime());
 	}
 
 	/** Current formatted realm time as HH:mm:ss */
@@ -155,7 +149,7 @@ class TimeManager extends BaseManager {
 				}
 
 				this._restricted = options?.restricted ?? false;
-				this._startPoint = options?.startPoint ?? 0;
+				this._startPoint = new Date(options?.startPoint ?? 0);
 				// max allowed speed is 100x
 				this._speedModifier =
 					((options?.speedModifier ?? 1) > 100
@@ -192,7 +186,7 @@ class TimeManager extends BaseManager {
 	/** Returns all the necessary data to reconstruct the Time Manager and calculate the time */
 	metadata(): TimeOptions {
 		return {
-			startPoint: this.startPoint,
+			startPoint: this.startPoint.getTime(),
 			speedModifier: this.speedModifier,
 			trueElapsed: this.trueMs,
 			elapsed: this.elapsed,
@@ -219,7 +213,7 @@ class TimeManager extends BaseManager {
 		// TODO: auditing
 
 		// TODO: startpoint changes are potentially destructive
-		if (typeof data.startPoint === "number") {
+		if (data.startPoint instanceof Date) {
 			this.startPoint = data.startPoint;
 			modified = true;
 		}
