@@ -1,56 +1,60 @@
-import Resource, { ResourceOptions } from "./resource";
 import bcrypt from "bcrypt";
-import BaseManager from "../managers/BaseManager";
-import UserManager from "../managers/UserManager";
-import Realm from "./realm";
-import Locomotive from "./locomotive";
 import crypto from "crypto";
+import {
+	BaseManager,
+	Errors,
+	LocomotiveLink,
+	Resource,
+	ResourceOptions,
+	Session,
+	TMError,
+	UserManager,
+} from "../internal";
 
 interface UserOptions extends UserPublicData {
 	passwordHash?: string;
 	settings?: UserSettings;
-	realmId: null;
 	email: string;
+}
+
+interface UserLinkOptions extends ResourceOptions {
+	userId: string;
 }
 
 type UserConstructorOptions = Omit<UserOptions, "id" | "emailMD5"> & {
 	id?: string;
 };
 
-interface UserPublicData extends Omit<ResourceOptions, "realmId"> {
+interface UserPublicData extends Omit<ResourceOptions<UserManager>, "realmId"> {
 	id: string;
 	name: string;
 	emailMD5: string;
 	username: string;
 	disabled?: boolean;
 	admin?: boolean;
-	realmId: null;
 	permissions?: UserPermissionsMetadata;
-	dispatching?: { realm: string; station: string };
-	controlling?: { realm: string; locomotive: string }[];
-	owning?: string[];
 }
 
 interface UserPermissions {
 	global: number;
-	readonly realm: Map<string, number>;
+	readonly session: Map<string, number>;
 }
 
 interface UserPermissionsMetadata {
 	global: number;
-	realm: [string, number][];
+	session: [string, number][];
 }
 
 type Permission = keyof typeof PermissionMap;
 
 const PermissionMap = {
-	"manage realm": 1 << 0,
+	"manage sessions": 1 << 0,
 	"manage users": 1 << 1,
 	"manage stations": 1 << 2,
 	"manage movables": 1 << 3,
-	"manage time": 1 << 4,
+	"manage time": (1 << 4) + (1 << 5),
 	"control time": 1 << 5,
-	"assign users": 1 << 6,
+	"assign users": (1 << 6) + (1 << 9),
 	"manage trains": 1 << 7,
 	"manage timetables": 1 << 8,
 	"assign self": 1 << 9,
@@ -122,29 +126,12 @@ class User extends Resource<UserManager> {
 		this.save();
 	}
 
-	public get controlling() {
-		return Array.from(this.userManager.client.realms.values())
-			.flatMap(
-				(r) =>
-					Array.from(
-						r.movableManager.movables
-							.filter((v) => v instanceof Locomotive)
-							.values()
-					) as Locomotive[]
-			)
-			.filter((m) => m.controller === this);
-	}
-
-	public get owning() {
-		return Array.from(this.userManager.client.realms.values()).filter(
-			(r) => r.owner === this
+	public get owning(): Session[] {
+		return Array.from(
+			this.manager.client.sessions
+				.filter((s) => s.owner === this)
+				.values()
 		);
-	}
-
-	public get dispatching() {
-		return this.userManager.client.realms
-			.flatMap((r) => r.stationManager.stations)
-			.find((s) => s.dispatcher === this);
 	}
 
 	private readonly permissions: UserPermissions;
@@ -165,7 +152,7 @@ class User extends Resource<UserManager> {
 		this._admin = options.admin ?? false;
 		this.permissions = {
 			global: options.permissions?.global ?? 0b0,
-			realm: new Map(options.permissions?.realm),
+			session: new Map(options.permissions?.session),
 		};
 		this.settings = options.settings ?? {};
 		this._disabled = options.disabled ?? false;
@@ -179,12 +166,12 @@ class User extends Resource<UserManager> {
 			email: this.email,
 			emailMD5: this.emailMD5,
 			managerId: this.managerId,
-			realmId: null,
 			passwordHash: this.passwordHash,
 			settings: this.settings,
 			disabled: this.disabled,
 			admin: this.admin,
 			permissions: this.permissionMeta(),
+			sessionId: null,
 		};
 	}
 
@@ -228,7 +215,7 @@ class User extends Resource<UserManager> {
 			typeof data.realmPermissions === "number" &&
 			data.realmId === "string"
 		) {
-			const realm = actor.manager.client.realms.get(data.realmId);
+			const realm = actor.manager.client.sessions.get(data.realmId);
 			if (realm) {
 				this.adjustRealmPermissions(realm, data.realmPermissions);
 				modified = true;
@@ -249,18 +236,7 @@ class User extends Resource<UserManager> {
 			id: this.id,
 			permissions: this.permissionMeta(),
 			managerId: this.managerId,
-			realmId: this.realmId,
-			dispatching: this.dispatching
-				? {
-						realm: this.dispatching.realmId,
-						station: this.dispatching.id,
-				  }
-				: undefined,
-			controlling: this.controlling.map((c) => ({
-				realm: c.realmId,
-				locomotive: c.id,
-			})),
-			owning: this.owning.map((r) => r.id),
+			sessionId: this.sessionId,
 		};
 	}
 	fullMetadata() {
@@ -272,22 +248,22 @@ class User extends Resource<UserManager> {
 	permissionMeta(): UserPermissionsMetadata {
 		return {
 			global: this.permissions?.global,
-			realm: Array.from(this.permissions?.realm.entries()),
+			session: Array.from(this.permissions?.session.entries()),
 		};
 	}
 
-	hasPermission(perm: Permission, realm?: Realm): boolean {
-		return (
-			perm === null ||
-			(this.permissions.global & PermissionMap[perm]) ===
-				PermissionMap[perm] ||
-			(realm &&
-				((this.permissions.realm.get(realm.id) ?? 0) &
-					PermissionMap[perm]) ===
-					PermissionMap[perm]) ||
-			realm?.owner === this ||
-			this.admin
-		);
+	hasPermission(perm: Permission, session?: Session): boolean {
+		if (session) {
+			const p = this.permissions.session.get(session.id) ?? 0;
+			const explicit = (p & PermissionMap[perm]) === PermissionMap[perm];
+			const implicit = session.owner === this || this.admin;
+			return explicit || implicit;
+		} else {
+			const p = this.permissions.global;
+			const explicit = (p & PermissionMap[perm]) === PermissionMap[perm];
+			const implicit = this.admin;
+			return explicit || implicit;
+		}
 	}
 
 	public adjustGlobalPermissions(newPerm: number) {
@@ -295,8 +271,8 @@ class User extends Resource<UserManager> {
 		this.save();
 	}
 
-	public adjustRealmPermissions(realm: Realm, newPerm: number) {
-		this.permissions.realm.set(realm.id, newPerm);
+	public adjustRealmPermissions(realm: Session, newPerm: number) {
+		this.permissions.session.set(realm.id, newPerm);
 		this.save();
 	}
 
@@ -316,15 +292,106 @@ class User extends Resource<UserManager> {
 		if (!this.passwordHash) return true;
 		return bcrypt.compareSync(password, this.passwordHash);
 	}
+
+	static checkPermission(
+		user: User,
+		permission: Permission,
+		session?: Session,
+		err = true
+	) {
+		if (!user.hasPermission(permission, session)) {
+			if (err) throw Errors.forbidden([permission]);
+			else return false;
+		}
+		return true;
+	}
+
+	static checkLink(
+		user: User,
+		session: Session,
+		err: false
+	): UserLink | false;
+	static checkLink(user: User, session: Session, err?: true): UserLink;
+	static checkLink(user: User, session: Session, err = true): unknown {
+		const l = session.userLinkManager.getByUser(user);
+		if (!l) {
+			if (err)
+				throw new TMError(
+					`ENOSESSIONLINK`,
+					`You can not perform actions in this sssion!`,
+					{ sessionId: session.id }
+				);
+			else return false;
+		}
+		return l;
+	}
 }
 
-export default User;
+class UserLink extends Resource {
+	public readonly userId: string;
+	public get user() {
+		const u = this.session.client.userManager.get(this.userId);
+		if (!u) throw new TMError(`EINTERNAL`);
+		return u;
+	}
+
+	public get dispatching() {
+		return this.session.stationLinkManager.links.find(
+			(s) => s.dispatcher === this
+		);
+	}
+
+	public get controlling() {
+		return this.session.movableLinkManager.links.filter(
+			(l) => l instanceof LocomotiveLink && l.controller === this
+		);
+	}
+
+	constructor(options: UserLinkOptions) {
+		super(`userlink`, options);
+
+		this.userId = options.userId;
+	}
+
+	modify() {
+		return false;
+	}
+
+	metadata(): UserLinkOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			sessionId: this.sessionId,
+			userId: this.userId,
+		};
+	}
+
+	publicMetadata() {
+		return this.metadata();
+	}
+
+	fullMetadata() {
+		return this.metadata();
+	}
+
+	async save(): Promise<boolean> {
+		await this.manager.db.redis.hset(this.managerId, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
+		return true;
+	}
+}
+
 export {
+	User,
 	UserOptions,
+	UserLinkOptions,
 	UserSettings,
 	PermissionMap,
 	UserPermissions,
 	UserPermissionsMetadata,
 	Permission,
 	UserConstructorOptions,
+	UserLink,
 };

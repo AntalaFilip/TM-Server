@@ -1,19 +1,21 @@
 import Collection from "@discordjs/collection";
-import Movable from "../types/movable";
-import Realm from "../types/realm";
-import TMError from "../types/tmerror";
-import TrainSet, {
+import {
+	MovableLink,
+	Session,
+	SessionResourceManager,
+	TMError,
+	TrainSet,
 	TrainSetOptions,
 	TrainSetOptionsMetadata,
-} from "../types/trainset";
-import User from "../types/user";
-import ResourceManager from "./ResourceManager";
+	User,
+	UserLink,
+} from "../internal";
 
-class TrainSetManager extends ResourceManager {
+class TrainSetManager extends SessionResourceManager {
 	public readonly trainsets: Collection<string, TrainSet>;
 	public readonly ready: Promise<void>;
 
-	constructor(realm: Realm) {
+	constructor(realm: Session) {
 		super(realm, `trainsets`);
 
 		this.trainsets = new Collection();
@@ -26,8 +28,13 @@ class TrainSetManager extends ResourceManager {
 		});
 	}
 
-	get(id: string): TrainSet | undefined {
-		return this.trainsets.get(id);
+	get(id: string, error: true): TrainSet;
+	get(id: string): TrainSet | undefined;
+	get(id: string, error?: boolean): unknown {
+		const l = this.trainsets.get(id);
+		if (!l && error)
+			throw new TMError(`EINVALIDINPUT`, `Invalid input ID!`);
+		return l;
 	}
 	getOne(id: string) {
 		return this.get(id)?.fullMetadata();
@@ -38,10 +45,10 @@ class TrainSetManager extends ResourceManager {
 
 	async create(
 		resource: TrainSet | TrainSetOptions,
-		actor?: User
+		actor?: UserLink
 	): Promise<TrainSet> {
-		if (actor && !actor.hasPermission("manage stations", this.realm))
-			throw new Error("No permission!");
+		actor &&
+			User.checkPermission(actor.user, "manage trains", this.session);
 
 		if (!(resource instanceof TrainSet)) {
 			resource = new TrainSet(resource);
@@ -67,15 +74,15 @@ class TrainSetManager extends ResourceManager {
 	}
 
 	private async createAllFromStore() {
-		await this.realm.movableManager.ready;
+		await this.session.movableLinkManager.ready;
 		const allSets = await this.db.redis.hgetall(this.id);
 		const arr = Object.entries(allSets);
 		for (const r of arr) {
 			try {
 				const v = JSON.parse(r[1]) as TrainSetOptionsMetadata;
 				const components = v.componentIds
-					.map((c) => this.realm.movableManager.get(c))
-					.filter((m) => m instanceof Movable);
+					.map((c) => this.session.movableLinkManager.get(c))
+					.filter((m) => m instanceof MovableLink) as MovableLink[];
 				// TODO: self-healing
 				if (components.length != v.componentIds.length)
 					throw new TMError(
@@ -100,4 +107,4 @@ class TrainSetManager extends ResourceManager {
 	}
 }
 
-export default TrainSetManager;
+export { TrainSetManager };

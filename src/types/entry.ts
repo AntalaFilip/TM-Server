@@ -1,32 +1,29 @@
-import Collection from "@discordjs/collection";
-import ArrDepSet from "./arrdepset";
-import Resource, { ResourceOptions } from "./resource";
-import Timetable from "./timetable";
-import TMError from "./tmerror";
-import TrainSet from "./trainset";
+import {
+	Resource,
+	ResourceOptions,
+	Timetable,
+	TMError,
+	TrainSet,
+} from "../internal";
 
 interface TimetableEntryOptions extends ResourceOptions {
 	trainId: string;
-	stationId: string;
-	trackId: string;
+	stationLinkId: string;
+	trackLinkId: string;
 	setIds?: string[];
-	locomotiveId: string;
+	locomotiveLinkId: string;
 	start: Date;
 	repeats: number;
 	duration: number;
 	usedFrom: Date;
 	usedTill?: Date;
-	current?: ArrDepSet;
-	adsCount?: number;
-	cancelledAds?: number[];
-	delayedAds?: [number, number][];
 	ttId: string;
 }
 
 class TimetableEntry extends Resource {
 	public readonly ttId: string;
 	public get timetable(): Timetable {
-		const tt = this.realm.timetableManager.get(this.ttId);
+		const tt = this.session.timetableManager.get(this.ttId);
 		if (!tt) throw new TMError(`EINTERNAL`);
 		return tt;
 	}
@@ -40,35 +37,35 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`trainId`, id);
 	}
 	public get train() {
-		const t = this.realm.trainManager.get(this.trainId);
+		const t = this.session.trainManager.get(this.trainId);
 		if (!t) throw new TMError(`EINTERNAL`);
 		return t;
 	}
 
-	private _stationId: string;
-	public get stationId() {
-		return this._stationId;
+	private _stationLinkId: string;
+	public get stationLinkId() {
+		return this._stationLinkId;
 	}
-	private set stationId(id: string) {
-		this._stationId = id;
+	private set stationLinkId(id: string) {
+		this._stationLinkId = id;
 		this.propertyChange(`stationId`, id);
 	}
-	public get station() {
-		const s = this.realm.stationManager.get(this.stationId);
+	public get stationLink() {
+		const s = this.session.stationLinkManager.get(this.stationLinkId);
 		if (!s) throw new TMError(`EINTERNAL`);
 		return s;
 	}
 
-	private _trackId: string;
-	public get trackId() {
-		return this._trackId;
+	private _trackLinkId: string;
+	public get trackLinkId() {
+		return this._trackLinkId;
 	}
-	private set trackId(id: string) {
-		this._trackId = id;
+	private set trackLinkId(id: string) {
+		this._trackLinkId = id;
 		this.propertyChange(`trackId`, id);
 	}
-	public get track() {
-		const t = this.station.tracks.get(this.trackId);
+	public get trackLink() {
+		const t = this.stationLink.trackLinks.get(this.trackLinkId);
 		if (!t) throw new TMError(`EINTERNAL`);
 		return t;
 	}
@@ -76,20 +73,22 @@ class TimetableEntry extends Resource {
 	public readonly setIds: string[];
 	public get sets() {
 		return this.setIds
-			.map((id) => this.realm.trainSetManager.get(id))
+			.map((id) => this.session.trainSetManager.get(id))
 			.filter((t) => t instanceof TrainSet) as TrainSet[];
 	}
 
-	private _locomotiveId: string;
-	public get locomotiveId() {
-		return this._locomotiveId;
+	private _locomotiveLinkId: string;
+	public get locomotiveLinkId() {
+		return this._locomotiveLinkId;
 	}
-	private set locomotiveId(id: string) {
-		this._locomotiveId = id;
+	private set locomotiveLinkId(id: string) {
+		this._locomotiveLinkId = id;
 		this.propertyChange(`locomotiveId`, id);
 	}
-	public get locomotive() {
-		const l = this.realm.movableManager.getLoco(this.locomotiveId);
+	public get locomotiveLink() {
+		const l = this.session.client.movableManager.getLoco(
+			this.locomotiveLinkId
+		);
 		if (!l) throw new TMError(`EINTERNAL`);
 		return l;
 	}
@@ -113,6 +112,9 @@ class TimetableEntry extends Resource {
 	}
 
 	private _repeats: number;
+	/** Interval in ms in which the entry repeats
+	 * @unit millisecond
+	 */
 	public get repeats() {
 		return this._repeats;
 	}
@@ -134,60 +136,35 @@ class TimetableEntry extends Resource {
 	public get duration() {
 		return this._duration;
 	}
+	/** Length of stay in the station in seconds
+	 * @unit second
+	 */
 	private set duration(length: number) {
 		this._duration = length;
 		this.propertyChange(`duration`, length);
 	}
 
-	public get times(): ArrDepSet[] {
-		const times = [];
-		// we want to generate the last entry as well, to make sure that current trains will have some reference
-		for (let i = -1; i < this.timetable.genCount - 1; i++) {
-			const no = this.adsCount + i;
-			const set = new ArrDepSet({
-				no,
-				entryId: this.id,
-				timetableId: this.timetable.id,
-				managerId: this.managerId,
-			});
-			times.push(set);
-		}
-		return times;
+	public get linkedADS() {
+		return Array.from(
+			this.session.aDSManager.arrdepsets
+				.filter((ads) => ads.entry === this)
+				.values()
+		);
 	}
-
-	public get current() {
-		return this.times[1];
-	}
-
-	private _adsCount: number;
-	public get adsCount() {
-		return this._adsCount;
-	}
-	private set adsCount(count: number) {
-		if (count <= this._adsCount) return;
-		this._adsCount = count;
-		this.propertyChange(`adsCount`, count);
-	}
-
-	public readonly cancelledAds: number[];
-	public readonly delayedAds: Collection<number, number>;
 
 	constructor(options: TimetableEntryOptions) {
 		super(`timetableentry`, options);
 
 		this.ttId = options.ttId;
 		this._trainId = options.trainId;
-		this._stationId = options.stationId;
-		this._trackId = options.trackId;
-		this._locomotiveId = options.locomotiveId;
+		this._stationLinkId = options.stationLinkId;
+		this._trackLinkId = options.trackLinkId;
+		this._locomotiveLinkId = options.locomotiveLinkId;
 		this._repeats = options.repeats;
 		this._start = options.start;
 		this._duration = options.duration;
 		this._usedFrom = options.usedFrom;
 		this._usedTill = options.usedTill;
-		this._adsCount = options.adsCount ?? 0;
-		this.cancelledAds = options.cancelledAds ?? [];
-		this.delayedAds = new Collection(options.delayedAds ?? []);
 
 		this.setIds = options.setIds ?? [];
 	}
@@ -202,11 +179,6 @@ class TimetableEntry extends Resource {
 		this.propertyChange(`setIds`, setIds);
 	}
 
-	nextSet() {
-		this.adsCount++;
-		return this.current;
-	}
-
 	modify(): boolean | Promise<boolean> {
 		return false;
 	}
@@ -215,41 +187,27 @@ class TimetableEntry extends Resource {
 		return {
 			id: this.id,
 			managerId: this.managerId,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			duration: this.duration,
-			locomotiveId: this.locomotiveId,
+			locomotiveLinkId: this.locomotiveLinkId,
 			repeats: this.repeats,
 			start: this.start,
-			stationId: this.stationId,
-			trackId: this.trackId,
+			stationLinkId: this.stationLinkId,
+			trackLinkId: this.trackLinkId,
 			trainId: this.trainId,
 			usedFrom: this.usedFrom,
 			usedTill: this.usedTill,
 			setIds: this.sets.map((s) => s.id),
-			adsCount: this.adsCount,
-			delayedAds: Array.from(this.delayedAds.entries()),
-			cancelledAds: this.cancelledAds,
 			ttId: this.ttId,
 		};
 	}
 
 	publicMetadata() {
-		return {
-			...this.metadata(),
-			times: this.times.slice(0, 5),
-		};
+		return this.metadata();
 	}
 
 	fullMetadata() {
-		return {
-			...this.metadata(),
-			locomotive: this.locomotive?.publicMetadata(),
-			station: this.station?.publicMetadata(),
-			track: this.track?.publicMetadata(),
-			train: this.train?.publicMetadata(),
-			sets: this.sets.map((s) => s.publicMetadata()),
-			times: this.times,
-		};
+		return this.metadata();
 	}
 
 	async save(): Promise<boolean> {
@@ -262,5 +220,4 @@ class TimetableEntry extends Resource {
 	}
 }
 
-export default TimetableEntry;
-export { TimetableEntryOptions, ArrDepSet };
+export { TimetableEntry, TimetableEntryOptions };

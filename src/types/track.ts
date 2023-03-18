@@ -1,8 +1,14 @@
-import Resource, { ResourceOptions } from "./resource";
-import Train from "./train";
-import User from "./user";
+import {
+	Resource,
+	ResourceOptions,
+	StationLink,
+	StationManager,
+	TMError,
+	Train,
+	User,
+} from "../internal";
 
-interface StationTrackOptions extends ResourceOptions {
+interface StationTrackOptions extends ResourceOptions<StationManager> {
 	stationId: string;
 	name: string;
 	short: string;
@@ -10,11 +16,17 @@ interface StationTrackOptions extends ResourceOptions {
 	usedForParking: boolean;
 }
 
-class StationTrack extends Resource {
+interface StationTrackLinkOptions extends ResourceOptions {
+	trackId: string;
+	stationLinkId: string;
+}
+
+class StationTrack extends Resource<StationManager> {
+	public override readonly type = "track";
 	public readonly stationId: string;
 	/** The station the Track is located in */
 	public get station() {
-		return this.realm.stationManager.get(this.stationId);
+		return this.manager.client.stationManager.get(this.stationId);
 	}
 
 	private _name: string;
@@ -44,12 +56,6 @@ class StationTrack extends Resource {
 		this.propertyChange("length", this.length);
 	}
 
-	public get currentTrain(): Train | undefined {
-		return this.realm.trainManager.trains.find(
-			(t) => t.location?.track === this
-		);
-	}
-
 	private _usedForParking: boolean;
 	public get usedForParking() {
 		return this._usedForParking;
@@ -70,8 +76,7 @@ class StationTrack extends Resource {
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage stations", this.realm))
-			throw new Error(`No permission`);
+		User.checkPermission(actor, "manage stations");
 		let modified = false;
 
 		// TODO: auditing
@@ -98,7 +103,7 @@ class StationTrack extends Resource {
 		return {
 			id: this.id,
 			managerId: this.managerId,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			stationId: this.stationId,
 			usedForParking: this.usedForParking,
 			length: this.length,
@@ -127,5 +132,68 @@ class StationTrack extends Resource {
 	}
 }
 
-export default StationTrack;
-export { StationTrackOptions };
+class StationTrackLink extends Resource {
+	public override readonly type = "stationtracklink";
+	public readonly trackId: string;
+	public readonly stationLinkId: string;
+	public get stationLink() {
+		const s = this.manager.get(this.stationLinkId);
+		if (!s) throw new TMError(`EINTERNAL`);
+		return s as StationLink;
+	}
+	public get track() {
+		const t = this.stationLink.station.tracks.find(
+			(t) => t.id === this.trackId
+		);
+		if (!t) throw new TMError(`EINTERNAL`);
+		return t;
+	}
+
+	public get currentTrain(): Train | undefined {
+		return this.session.trainManager.trains.find(
+			(t) => t.location?.trackLink === this
+		);
+	}
+
+	constructor(options: StationTrackLinkOptions) {
+		super(`stationtracklink`, options);
+
+		this.trackId = options.trackId;
+		this.stationLinkId = options.stationLinkId;
+	}
+
+	metadata(): StationTrackLinkOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			sessionId: this.sessionId,
+			stationLinkId: this.stationLinkId,
+			trackId: this.trackId,
+		};
+	}
+	publicMetadata() {
+		return this.metadata();
+	}
+	fullMetadata() {
+		return this.metadata();
+	}
+
+	modify(): boolean {
+		return false;
+	}
+
+	async save(): Promise<boolean> {
+		await this.manager.db.redis.hset(
+			this.manager.key(`${this.stationLinkId}:tracklinks`),
+			[this.id, JSON.stringify(this.metadata())]
+		);
+		return true;
+	}
+}
+
+export {
+	StationTrack,
+	StationTrackOptions,
+	StationTrackLink,
+	StationTrackLinkOptions,
+};

@@ -1,6 +1,12 @@
-import Movable, { MovableOptions } from "./movable";
-import Train from "./train";
-import User from "./user";
+import {
+	Movable,
+	MovableLink,
+	MovableLinkOptions,
+	MovableOptions,
+	TMError,
+	Train,
+	User,
+} from "../internal";
 
 type WagonType = keyof typeof WagonTypes;
 const WagonTypes = {
@@ -12,6 +18,10 @@ interface WagonOptions extends MovableOptions {
 	wagonType: WagonType;
 }
 
+interface WagonLinkOptions extends MovableLinkOptions {
+	wagonId: string;
+}
+
 function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
 	return (
 		typeof toCheck === "string" && Object.keys(WagonTypes).includes(toCheck)
@@ -19,6 +29,7 @@ function checkWagonTypeValidity(toCheck: unknown): toCheck is WagonType {
 }
 
 class Wagon extends Movable {
+	public override readonly type = "WAGON";
 	private _wagonType: WagonType;
 	/** Type of the current wagon; eg. passenger/cargo */
 	public get wagonType() {
@@ -35,55 +46,30 @@ class Wagon extends Movable {
 		this._wagonType = options.wagonType;
 	}
 
-	public get currentTrain(): Train | undefined {
-		return this.realm.trainManager.trains.find((t) =>
-			Boolean(t.trainSets.find((s) => s.components.includes(this)))
-		);
-	}
-
 	metadata(): WagonOptions {
 		return {
 			couplerType: this.couplerType,
 			model: this.model,
 			wagonType: this.wagonType,
-			currentLocation: this.currentLocation
-				? {
-						stationId: this.currentLocation?.station?.id,
-						trackId: this.currentLocation?.track?.id,
-				  }
-				: undefined,
 			length: this.length,
 			maxSpeed: this.maxSpeed,
 			name: this.name,
 			id: this.id,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			managerId: this.managerId,
 			type: this.type,
 			ownerId: this.ownerId,
 		};
 	}
 	publicMetadata() {
-		return {
-			...this.metadata(),
-		};
+		return this.metadata();
 	}
 	fullMetadata() {
-		return {
-			...this.metadata(),
-			currentLocation:
-				this.currentLocation &&
-				Object.fromEntries(
-					Object.entries(this.currentLocation).map(([k, v]) => [
-						k,
-						v.publicMetadata(),
-					])
-				),
-		};
+		return this.metadata();
 	}
 
 	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage movables", this.realm))
-			throw new Error(`No permission`);
+		User.checkPermission(actor, "manage movables");
 		let modified = false;
 
 		// TODO: auditing
@@ -104,5 +90,58 @@ class Wagon extends Movable {
 	}
 }
 
-export default Wagon;
-export { WagonOptions, WagonType, checkWagonTypeValidity, WagonTypes };
+class WagonLink extends MovableLink {
+	public override readonly type = "wagonlink";
+	public readonly wagonId: string;
+	public get wagon() {
+		const w = this.session.client.movableManager.getWagon(this.wagonId);
+		if (!w) throw new TMError(`EINTERNAL`);
+		return w;
+	}
+
+	constructor(options: WagonLinkOptions) {
+		super("wagonlink", options);
+
+		this.wagonId = options.wagonId;
+	}
+
+	public get currentTrain(): Train | undefined {
+		return this.session.trainManager.trains.find((t) =>
+			Boolean(t.trainSets.find((s) => s.components.includes(this)))
+		);
+	}
+
+	metadata(): WagonLinkOptions {
+		return {
+			id: this.id,
+			managerId: this.managerId,
+			movableId: this.movableId,
+			sessionId: this.sessionId,
+			wagonId: this.wagonId,
+			currentLocation: this.currentLocation && {
+				stationLinkId: this.currentLocation.stationLink?.id,
+				trackLinkId: this.currentLocation.trackLink?.id,
+			},
+			type: this.type,
+		};
+	}
+	publicMetadata() {
+		return this.metadata();
+	}
+	fullMetadata() {
+		return this.metadata();
+	}
+	modify(): boolean {
+		return false;
+	}
+}
+
+export {
+	Wagon,
+	WagonOptions,
+	WagonType,
+	checkWagonTypeValidity,
+	WagonTypes,
+	WagonLink,
+	WagonLinkOptions,
+};

@@ -1,951 +1,791 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-	AuthenticationError,
-	ForbiddenError,
-	UserInputError,
-} from "apollo-server-core";
-import DateScalar from "./graphql/dateScalar";
-import Client from "./types/client";
-import TimetableEntry, { ArrDepSet } from "./types/entry";
-import Locomotive from "./types/locomotive";
-import Movable from "./types/movable";
-import Realm from "./types/realm";
-import { TrainState } from "./types/train";
-import TrainSet from "./types/trainset";
-import User, { UserPermissions } from "./types/user";
-import Wagon from "./types/wagon";
-import LongScalar from "graphql-type-long";
-import Station from "./types/station";
-import { firstCapital } from "./helpers/string";
+	DateScalar,
+	Errors,
+	firstCapital,
+	Locomotive,
+	Manager,
+	Movable,
+	newUUID,
+	Station,
+	StationLink,
+	TimetableEntry,
+	TMError,
+	TrainSet,
+	TrainState,
+	User,
+	Wagon,
+} from "./internal";
 
 type GQLContext = {
 	user?: User;
 };
 
-function createGQLResolvers(client: Client) {
-	const resolvers = {
-		Date: DateScalar,
-		Long: LongScalar,
-		Movable: {
-			__resolveType: (obj: Movable) => firstCapital(obj.type),
+const resolvers = {
+	Date: DateScalar,
+	Station: {
+		tracks: (parent: Station) => Array.from(parent.tracks.values()),
+	},
+	StationLink: {
+		trackLinks: (parent: StationLink) =>
+			Array.from(parent.trackLinks.values()),
+	},
+	Movable: {
+		__resolveType: (obj: Movable) => firstCapital(obj.type),
+	},
+	User: {
+		email: (parent: User, _a: never, ctx: GQLContext) =>
+			ctx.user?.hasPermission("manage users") || ctx.user === parent
+				? parent.email
+				: null,
+	},
+	TrainSet: {
+		// TODO: move to TrainSet
+		trains: (parent: TrainSet) =>
+			parent.session.trainManager.trains.filter((t) =>
+				t.trainSets.includes(parent)
+			),
+	},
+	Query: {
+		stations: async (p: Manager) => {
+			return Array.from(p.stationManager.stations.values());
 		},
-		User: {
-			email: (parent: User, _a: never, ctx: GQLContext) =>
-				ctx.user?.hasPermission("manage users") || ctx.user === parent
-					? parent.email
-					: null,
+		station: async (p: Manager, a: { id: string }) => {
+			return p.stationManager.get(a.id);
 		},
-		TrainSet: {
-			trains: (parent: TrainSet) =>
-				parent.realm.trainManager.trains.filter((t) =>
-					t.trainSets.includes(parent)
-				),
+		stationLink: async (p: Manager, a: { id: string; session: string }) => {
+			return p.get(a.session)?.stationLinkManager.get(a.id);
 		},
-		TimetableEntry: {
-			cancelledAds: (parent: TimetableEntry) =>
-				parent.cancelledAds.map(
-					(a) =>
-						new ArrDepSet({
-							no: a,
-							entryId: parent.id,
-							timetableId: parent.timetable.id,
-							managerId: parent.manager.id,
-						})
-				),
-			delayedAds: (parent: TimetableEntry) =>
-				parent.delayedAds.map((d, no) => ({
-					delay: d,
-					ads: new ArrDepSet({
-						no,
-						entryId: parent.id,
-						timetableId: parent.timetable.id,
-						managerId: parent.manager.id,
-					}),
-				})),
+
+		trains: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p.get(a.session)?.trainManager.trains.values() ?? []
+			);
 		},
-		Station: {
-			tracks: (parent: Station) => Array.from(parent.tracks.values()),
+		train: async (p: Manager, a: { session: string; id: string }) => {
+			return p.get(a.session)?.trainManager.get(a.id);
 		},
-		Query: {
-			stations: async (_p: never, a: { realm: string }) => {
-				return Array.from(
-					client.get(a.realm)?.stationManager.stations.values() ?? []
-				);
-			},
-			station: async (_p: never, a: { realm: string; id: string }) => {
-				return client.get(a.realm)?.stationManager.get(a.id);
-			},
-			trains: async (_p: never, a: { realm: string }) => {
-				return Array.from(
-					client.get(a.realm)?.trainManager.trains.values() ?? []
-				);
-			},
-			train: async (_p: never, a: { realm: string; id: string }) => {
-				return client.get(a.realm)?.trainManager.get(a.id);
-			},
-			trainSets: async (_p: never, a: { realm: string }) => {
-				return Array.from(
-					client.get(a.realm)?.trainSetManager.trainsets.values() ??
-						[]
-				);
-			},
-			trainSet: async (_p: never, a: { realm: string; id: string }) => {
-				return client.get(a.realm)?.trainSetManager.get(a.id);
-			},
-			locomotives: async (_p: never, a: { realm: string }) => {
-				return Array.from(
-					client
-						.get(a.realm)
-						?.movableManager.movables.filter(
-							(m) => m instanceof Locomotive
-						)
-						.values() ?? []
-				);
-			},
-			locomotive: async (_p: never, a: { realm: string; id: string }) => {
-				return client.get(a.realm)?.movableManager.getLoco(a.id);
-			},
-			wagons: async (_p: never, a: { realm: string }) => {
-				return Array.from(
-					client
-						.get(a.realm)
-						?.movableManager.movables.filter(
-							(m) => m instanceof Wagon
-						)
-						.values() ?? []
-				);
-			},
-			wagon: async (_p: never, a: { realm: string; id: string }) => {
-				return client.get(a.realm)?.movableManager.getWagon(a.id);
-			},
-			timetables: async (_p: never, a: { realm: string }) => {
-				return Array.from(
-					client.get(a.realm)?.timetableManager.timetables.values() ??
-						[]
-				);
-			},
-			timetable: async (_p: never, a: { realm: string; id: string }) => {
-				return client.get(a.realm)?.timetableManager.get(a.id);
-			},
-			users: async (_p: never, a: { disabled?: boolean }) => {
-				return Array.from(client.userManager.users.values()).filter(
-					(u) => !u.disabled || a.disabled
-				);
-			},
-			user: async (_p: never, a: { id: string }) => {
-				return client.userManager.get(a.id);
-			},
-			realms: async () => {
-				return Array.from(client.realms.values());
-			},
-			realm: async (_p: never, a: { id: string }) => {
-				return client.get(a.id);
-			},
-			time: async (_p: never, a: { realm: string }) => {
-				return client.get(a.realm)?.timeManager;
-			},
+
+		trainSets: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p.get(a.session)?.trainSetManager.trainsets.values() ?? []
+			);
 		},
-		Mutation: {
-			addStation: async (
-				_p: never,
-				a: { realm: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-				return await realm.stationManager.create(
-					{
-						...a.input,
-						realmId: realm.id,
-						managerId: realm.stationManager.id,
-					},
-					c.user
-				);
-			},
-			modStation: async (
-				_p: never,
-				a: { input: any; station: string; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
+		trainSet: async (p: Manager, a: { session: string; id: string }) => {
+			return p.get(a.session)?.trainSetManager.get(a.id);
+		},
 
-				const station = realm.stationManager.get(a.station);
-				if (!station)
-					throw new UserInputError(`Invalid Station ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `STATION`,
-					});
-				station.modify(a.input, c.user);
-				return station;
-			},
-			setStationDispatcher: async (
-				_p: never,
-				a: { realm: string; station: string; dispatcher: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
+		locomotives: async (p: Manager) => {
+			return Array.from(
+				p.movableManager.movables
+					.filter((m) => m instanceof Locomotive)
+					.values()
+			);
+		},
+		locomotive: async (p: Manager, a: { id: string }) => {
+			return p.movableManager.getLoco(a.id);
+		},
+		locomotiveLink: async (
+			p: Manager,
+			a: { id: string; session: string }
+		) => {
+			return p.get(a.session)?.movableLinkManager.getLocoLink(a.id);
+		},
 
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-				const station = realm.stationManager.get(a.station);
-				if (!station)
-					throw new UserInputError(`Invalid Station ID!`, {
-						code: `EBADPARAM`,
-						extension: `STATION`,
-					});
-				const dispatcher = client.userManager.get(a.dispatcher);
-				if (!dispatcher && a.dispatcher)
-					throw new UserInputError(`Invalid User ID!`, {
-						code: `EBADPARAM`,
-						extension: `STATION`,
-					});
+		wagons: async (p: Manager) => {
+			return Array.from(
+				p.movableManager.movables
+					.filter((m) => m instanceof Wagon)
+					.values() ?? []
+			);
+		},
+		wagon: async (p: Manager, a: { id: string }) => {
+			return p.movableManager.getWagon(a.id);
+		},
+		wagonLink: async (p: Manager, a: { id: string; session: string }) => {
+			return p.get(a.session)?.movableLinkManager.getWagonLink(a.id);
+		},
 
-				station.setDispatcher(dispatcher, c.user);
-				return station;
-			},
-			addStationTrack: async (
-				_p: never,
-				a: { realm: string; station: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
+		timetables: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p.get(a.session)?.timetableManager.timetables.values() ?? []
+			);
+		},
+		timetable: async (p: Manager, a: { session: string; id: string }) => {
+			return p.get(a.session)?.timetableManager.get(a.id);
+		},
 
-				const station = realm.stationManager.get(a.station);
-				if (!station)
-					throw new UserInputError(`Invalid Station ID!`, {
-						code: `EBADPARAM`,
-						extension: `STATION`,
-					});
+		arrDepSets: async (p: Manager, a: { session: string }) =>
+			Array.from(p.get(a.session)?.aDSManager.arrdepsets.values() ?? []),
+		arrDepSet: async (p: Manager, a: { session: string; id: string }) =>
+			p.get(a.session)?.aDSManager.get(a.id),
 
-				return await station.addTrack(
-					{
-						...a.input,
-						realmId: realm.id,
-						managerId: realm.stationManager.id,
-						stationId: realm.stationManager.key(station.id),
-					},
-					c.user
-				);
-			},
-			modStationTrack: async (
-				_p: never,
-				a: {
-					input: any;
-					station: string;
-					track: string;
-					realm: string;
-				},
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
+		users: async (p: Manager, a: { disabled?: boolean }) => {
+			return Array.from(p.userManager.users.values()).filter(
+				(u) => !u.disabled || a.disabled
+			);
+		},
+		user: async (p: Manager, a: { id: string }) => {
+			return p.userManager.get(a.id);
+		},
 
-				const station = realm.stationManager.get(a.station);
-				if (!station)
-					throw new UserInputError(`Invalid Station ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `STATION`,
-					});
-				const track = station.tracks.get(a.track);
-				if (!track)
-					throw new UserInputError(`Invalid Track ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `TRACK`,
-					});
+		sessions: async (p: Manager) => {
+			return Array.from(p.sessions.values());
+		},
+		session: async (p: Manager, a: { id: string }) => {
+			return p.get(a.id);
+		},
 
-				track.modify(a.input, c.user);
-				return track;
-			},
-			addTrain: async (
-				_p: never,
-				a: { realm: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
+		actions: async (_p: Manager, _a: { session: string }) => [],
+		action: async (_p: Manager, _a: { session: string; id: string }) =>
+			null,
 
-				if (a.input.locomotive) {
-					const loco = realm.movableManager.getLoco(
-						a.input.locomotive
-					);
-					if (!loco)
-						throw new UserInputError(`Invalid Locomotive ID!`, {
-							code: `EBADPARAM`,
-							extension: `LOCOMOTIVE`,
-						});
-					a.input.locomotive = loco;
-				}
-				if (a.input.trainSets) {
-					const sets = a.input.trainSets
-						.map((id: string) => realm.trainSetManager.get(id))
-						.filter((t: TrainSet) => t != null);
-					if (sets.length != a.input.trainSets.length)
-						throw new UserInputError(`Invalid TrainSet IDs!`, {
-							code: `EBADPARAM`,
-							extension: `TRAINSET`,
-						});
-					a.input.trainSets = sets;
-				}
-				if (a.input.location) {
-					const station = realm.stationManager.get(
-						a.input.location.station
-					);
-					if (!station)
-						throw new UserInputError(`Invalid Station ID!`, {
-							code: `EBADPARAM`,
-							extension: `STATION`,
-						});
-					const track = station.tracks.get(a.input.location.track);
-					if (!track && a.input.location.track)
-						throw new UserInputError(`Invalid Track ID!`, {
-							code: `EBADPARAM`,
-							extension: `TRACK`,
-						});
-
-					a.input.location = { station, track };
-				}
-
-				return await realm.trainManager.create(
-					{
-						...a.input,
-						realmId: realm.id,
-						managerId: realm.trainManager.id,
-					},
-					c.user
-				);
-			},
-			modTrain: async (
-				_p: never,
-				a: { input: any; train: string; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const train = realm.trainManager.get(a.train);
-				if (!train)
-					throw new UserInputError(`Invalid Train ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `TRAIN`,
-					});
-
-				await train.modify(a.input, c.user);
-				return train;
-			},
-			stateTrain: async (
-				_p: never,
-				a: {
-					input: any;
-					train: string;
-					state: TrainState;
-					override?: boolean;
-					realm: string;
-				},
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const train = realm.trainManager.get(a.train);
-				if (!train)
-					throw new UserInputError(`Invalid Train ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `TRAIN`,
-					});
-
-				// TODO: add ...extra handling, ex. changing arrival track
-				train.updateTrainState(a.state, c.user, a.override);
-				return train;
-			},
-			addTrainSet: async (
-				_p: never,
-				a: { realm: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				if (a.input.components) {
-					const movables = a.input.components
-						.map((c: string) => realm.movableManager.get(c))
-						.filter((m: Movable) => m != null);
-					if (movables.length != a.input.components.length)
-						throw new UserInputError(`Invalid Movable IDs!`, {
-							code: `EBADPARAM`,
-							extentsion: `COMPONENTS`,
-						});
-
-					a.input.components = movables;
-				}
-
-				return await realm.trainSetManager.create(
-					{
-						...a.input,
-						realmId: realm.id,
-						managerId: realm.trainSetManager.id,
-					},
-					c.user
-				);
-			},
-			modTrainSet: async (
-				_p: never,
-				a: { trainSet: string; input: any; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const trainSet = realm.trainSetManager.get(a.trainSet);
-				if (!trainSet)
-					throw new UserInputError(`Invalid Train Set ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `TRAINSET`,
-					});
-
-				await trainSet.modify(a.input, c.user);
-				return trainSet;
-			},
-			addLocomotive: async (
-				_p: never,
-				a: { realm: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				if (a.input.location) {
-					const station = realm.stationManager.get(
-						a.input.location.station
-					);
-					if (!station)
-						throw new UserInputError(`Invalid Station ID!`, {
-							code: `EBADPARAM`,
-							extension: `STATION`,
-						});
-					const track = station.tracks.get(a.input.location.track);
-					if (!track && a.input.location.track)
-						throw new UserInputError(`Invalid Track ID!`, {
-							code: `EBADPARAM`,
-							extension: `TRACK`,
-						});
-
-					a.input.location = { station, track };
-				}
-				if (a.input.controller) {
-					const controller = realm.client.userManager.get(
-						a.input.controller
-					);
-					if (!controller)
-						throw new UserInputError(`Invalid User ID!`, {
-							code: `EBADPARAM`,
-							extension: `CONTROLLER`,
-						});
-
-					a.input.controller = controller;
-				}
-				if (a.input.owner) {
-					const owner = realm.client.userManager.get(a.input.owner);
-					if (!owner)
-						throw new UserInputError(`Invalid User ID!`, {
-							tmCode: `EBADPARAM`,
-							extension: `OWNER`,
-						});
-					a.input.owner = owner;
-				}
-
-				return await realm.movableManager.create(
-					{
-						...a.input,
-						type: "LOCOMOTIVE",
-						realmId: realm.id,
-						managerId: realm.movableManager.id,
-					},
-					c.user
-				);
-			},
-			modLocomotive: async (
-				_p: never,
-				a: { input: any; locomotive: string; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const locomotive = realm.movableManager.getLoco(a.locomotive);
-				if (!locomotive)
-					throw new UserInputError(`Invalid Locomotive ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `LOCOMOTIVE`,
-					});
-
-				locomotive.modify(a.input, c.user);
-				return locomotive;
-			},
-			addWagon: async (
-				_p: never,
-				a: { realm: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				if (a.input.location) {
-					const station = realm.stationManager.get(
-						a.input.location.station
-					);
-					if (!station)
-						throw new UserInputError(`Invalid Station ID!`, {
-							code: `EBADPARAM`,
-							extension: `STATION`,
-						});
-					const track = station.tracks.get(a.input.location.track);
-					if (!track && a.input.location.track)
-						throw new UserInputError(`Invalid Track ID!`, {
-							code: `EBADPARAM`,
-							extension: `TRACK`,
-						});
-
-					a.input.location = { station, track };
-				}
-
-				if (a.input.owner) {
-					const owner = realm.client.userManager.get(a.input.owner);
-					if (!owner)
-						throw new UserInputError(`Invalid User ID!`, {
-							tmCode: `EBADPARAM`,
-							extension: `OWNER`,
-						});
-					a.input.owner = owner;
-				}
-
-				return await realm.movableManager.create(
-					{
-						...a.input,
-						type: "WAGON",
-						realmId: realm.id,
-						managerId: realm.movableManager.id,
-					},
-					c.user
-				);
-			},
-			modWagon: async (
-				_p: never,
-				a: { input: any; wagon: string; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const wagon = realm.movableManager.getWagon(a.wagon);
-				if (!wagon)
-					throw new UserInputError(`Invalid Wagon ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `WAGON`,
-					});
-
-				wagon.modify(a.input, c.user);
-				return wagon;
-			},
-			addTimetable: async (
-				_p: never,
-				a: { realm: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				return await realm.timetableManager.create(
-					{
-						...a.input,
-						realmId: realm.id,
-						managerId: realm.timetableManager.id,
-					},
-					c.user
-				);
-			},
-			modTimetable: async (
-				_p: never,
-				a: { input: any; timetable: string; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const timetable = realm.timetableManager.get(a.timetable);
-				if (!timetable)
-					throw new UserInputError(`Invalid Timetable ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `TIMETABLE`,
-					});
-
-				await timetable.modify(a.input, c.user);
-				return timetable;
-			},
-			activeTimetable: async (
-				_p: never,
-				a: { timetable: string; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				if (!c.user.hasPermission(`manage timetables`, realm))
-					throw new ForbiddenError(`No permission!`, {
-						tmCode: `ENOPERM`,
-						permission: `manage timetables`,
-					});
-				const timetable = realm.timetableManager.get(a.timetable);
-				if (!timetable)
-					throw new UserInputError(`Invalid Timetable ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `TIMETABLE`,
-					});
-
-				return realm.setActiveTimetable(timetable);
-			},
-			addTimetableEntry: async (
-				_p: never,
-				a: { realm: string; timetable: string; input: any },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				const timetable = realm.timetableManager.get(a.timetable);
-				if (!timetable)
-					throw new UserInputError(`Invalid Timetable ID!`, {
-						error: `EBADPARAM`,
-						extension: `TIMETABLE`,
-					});
-
-				const train = realm.trainManager.get(a.input.train);
-				if (!train)
-					throw new UserInputError(`Invalid Train ID!`, {
-						error: `EBADPARAM`,
-						extension: `TRAIN`,
-					});
-				const station = realm.stationManager.get(a.input.station);
-				if (!station)
-					throw new UserInputError(`Invalid Station ID!`, {
-						error: `EBADPARAM`,
-						extension: `STATION`,
-					});
-				const track = station.tracks.get(a.input.track);
-				if (!track)
-					throw new UserInputError(`Invalid Track ID!`, {
-						error: `EBADPARAM`,
-						extension: `TRACK`,
-					});
-				const locomotive = realm.stationManager.get(a.input.locomotive);
-				if (!locomotive)
-					throw new UserInputError(`Invalid Locomotive ID!`, {
-						error: `EBADPARAM`,
-						extension: `LOCOMOTIVE`,
-					});
-
-				const sets = a.input.sets.map((id: string) =>
-					realm.trainSetManager.get(id)
-				);
-				if (sets.length != a.input.sets.length)
-					throw new UserInputError(`Invalid Set IDs!`, {
-						error: `EBADPARAM`,
-						extension: `SETS`,
-					});
-
-				const entry = new TimetableEntry({
+		time: async (p: Manager, a: { session: string }) => {
+			return p.get(a.session)?.timeManager;
+		},
+	},
+	Mutation: {
+		addStation: async (p: Manager, a: { input: any }, c: GQLContext) => {
+			if (!c.user) throw Errors.unauth();
+			return await p.stationManager.create(
+				{
 					...a.input,
-					managerId: realm.timetableManager.id,
-					realmId: realm.id,
-				});
-				timetable.addEntry(entry, c.user);
-				return entry;
-			},
-			addUser: async (_p: never, a: { input: any }, c: GQLContext) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-
-				if (a.input.admin && !c.user.admin)
-					throw new ForbiddenError(
-						`You are not authorized to grant Global Administrator permissions!`,
-						{ code: `ENOPERM`, extension: `GRANT: global admin` }
-					);
-
-				if (a.input.permissions?.realm) {
-					const realmPermissions = a.input.permissions.realm.map(
-						(perm: { realm: string; permissions: number }) => ({
-							realm: client.get(perm.realm),
-							permissions: perm.permissions,
-						})
-					);
-					if (
-						!realmPermissions.every(
-							(perm: UserPermissions) =>
-								perm.realm instanceof Realm
-						)
-					)
-						throw new UserInputError(
-							`Invalid UserPermissions Realm IDs`,
-							{
-								code: `EBADPARAM`,
-								extension: `USERPERMISSIONS REALM`,
-							}
-						);
-
-					a.input.permissions.realm = realmPermissions;
-				}
-
-				const passwordHash = a.input.password
-					? User.hashPassword(a.input.password)
-					: undefined;
-				return await client.userManager.create(
-					{
-						...a.input,
-						managerId: client.userManager.id,
-						passwordHash,
-					},
-					c.user
-				);
-			},
-			modUser: async (
-				_p: never,
-				a: { input: any; user: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-
-				const user = client.userManager.get(a.user);
-				if (!user)
-					throw new UserInputError(`Invalid User ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `USER`,
-					});
-
-				await user.modify(a.input, c.user);
-				return user;
-			},
-			addRealm: async (_p: never, a: { input: any }, c: GQLContext) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-
-				return await client.create(
-					{ ...a.input, ownerId: c.user.id },
-					c.user
-				);
-			},
-			modRealm: async (
-				_p: never,
-				a: { input: any; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				await realm.modify(a.input, c.user);
-				return realm;
-			},
-
-			modRealmTime: async (
-				_p: never,
-				a: { input: any; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				realm.timeManager.modify(a.input, c.user);
-				return realm.timeManager;
-			},
-			pauseRealmTime: async (
-				_p: never,
-				a: { state: boolean; realm: string },
-				c: GQLContext
-			) => {
-				if (!c.user)
-					throw new AuthenticationError(`Unauthenticated`, {
-						tmCode: `ENOAUTH`,
-					});
-				const realm = client.get(a.realm);
-				if (!realm)
-					throw new UserInputError(`Invalid Realm ID!`, {
-						tmCode: `EBADPARAM`,
-						extension: `REALM`,
-					});
-
-				realm.timeManager.setRunning(a.state, c.user);
-				return realm.timeManager;
-			},
+					managerId: p.stationManager.id,
+				},
+				c.user
+			);
 		},
-	};
-	return resolvers;
-}
+		modStation: async (
+			p: Manager,
+			a: { input: any; station: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
 
-export default createGQLResolvers;
-export { GQLContext };
+			const station = p.stationManager.get(a.station, true);
+			station.modify(a.input, c.user);
+			return station;
+		},
+		setStationDispatcher: async (
+			p: Manager,
+			a: { session: string; station: string; dispatcher?: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+
+			const session = p.get(a.session, true);
+
+			const stationLink = session.stationLinkManager.get(a.station, true);
+			const dispatcher = session.userLinkManager.get(
+				a.dispatcher ?? "",
+				Boolean(a.dispatcher)
+			);
+
+			stationLink.setDispatcher(
+				dispatcher,
+				User.checkLink(c.user, session)
+			);
+			return stationLink;
+		},
+		linkStation: async (
+			p: Manager,
+			a: { session: string; id: string; tracks?: string[] },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+
+			const session = p.get(a.session, true);
+			const ulink = User.checkLink(c.user, session);
+			const station = p.stationManager.get(a.id, true);
+
+			if (session.stationLinkManager.getByStation(station)) {
+				throw new TMError(
+					`EALREADYEXISTS`,
+					`This StationLink already exists!`
+				);
+			}
+
+			const tracks = a.tracks?.map((id) => station.getTrack(id, true));
+
+			const stationLink = await session.stationLinkManager.create(
+				{
+					id: newUUID(),
+					managerId: session.stationLinkManager.id,
+					sessionId: session.id,
+					stationId: station.id,
+				},
+				ulink
+			);
+			if (!tracks) return stationLink;
+			for (const t of tracks) {
+				stationLink.addTrackLink(
+					{
+						id: newUUID(),
+						managerId: session.stationLinkManager.id,
+						sessionId: session.id,
+						stationLinkId: stationLink.id,
+						trackId: t.id,
+					},
+					ulink
+				);
+			}
+
+			return stationLink;
+		},
+
+		addStationTrack: async (
+			p: Manager,
+			a: { station: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+
+			const station = p.stationManager.get(a.station, true);
+
+			return await station.addTrack(
+				{
+					...a.input,
+					managerId: p.stationManager.id,
+					stationId: station.id,
+				},
+				c.user
+			);
+		},
+		modStationTrack: async (
+			p: Manager,
+			a: {
+				input: any;
+				station: string;
+				track: string;
+			},
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+
+			const station = p.stationManager.get(a.station, true);
+			const track = station.getTrack(a.track, true);
+			track.modify(a.input, c.user);
+			return track;
+		},
+		linkStationTrack: async (
+			p: Manager,
+			a: {
+				station: string;
+				track: string;
+				session: string;
+			},
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const station = p.stationManager.get(a.station, true);
+			const track = station.getTrack(a.track, true);
+
+			const sl = session.stationLinkManager.getByStation(station);
+			if (!sl)
+				throw new TMError(
+					`ENOLINK`,
+					`The Station provided is not linked!`
+				);
+			if (sl.getTrackLink(track))
+				throw new TMError(
+					`EALREADYEXISTS`,
+					`This TrackLink already exists!`
+				);
+
+			const tl = sl.addTrackLink(
+				{
+					id: newUUID(),
+					managerId: session.stationLinkManager.id,
+					sessionId: session.id,
+					stationLinkId: sl.id,
+					trackId: track.id,
+				},
+				User.checkLink(c.user, session)
+			);
+			return tl;
+		},
+		addTrain: async (
+			p: Manager,
+			a: { session: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+
+			if (a.input.locomotiveLink) {
+				a.input.locomotive = session.movableLinkManager.getLocoLink(
+					a.input.locomotiveLink,
+					true
+				);
+			}
+			if (a.input.trainSets) {
+				const sets = (a.input.trainSets as string[]).map((id: string) =>
+					session.trainSetManager.get(id, true)
+				);
+				a.input.trainSets = sets;
+			}
+			if (a.input.location) {
+				const station = session.stationLinkManager.get(
+					a.input.location.stationLink,
+					true
+				);
+				if (!a.input.location.trackLink) {
+					a.input.location = { station };
+				} else {
+					const track = station.getTrackLink(
+						a.input.location.trackLink,
+						true
+					);
+					a.input.location = { station, track };
+				}
+			}
+
+			return await session.trainManager.create(
+				{
+					...a.input,
+					sessionId: session.id,
+					managerId: session.trainManager.id,
+				},
+				User.checkLink(c.user, session)
+			);
+		},
+		modTrain: async (
+			p: Manager,
+			a: { input: any; train: string; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const train = session.trainManager.get(a.train, true);
+
+			await train.modify(a.input, User.checkLink(c.user, session));
+			return train;
+		},
+		stateTrain: async (
+			p: Manager,
+			a: {
+				input: any;
+				train: string;
+				state: TrainState;
+				override?: boolean;
+				session: string;
+			},
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const train = session.trainManager.get(a.train, true);
+
+			// TODO: add ...extra handling, ex. changing arrival track
+			await train.updateTrainState(
+				a.state,
+				User.checkLink(c.user, session),
+				a.override
+			);
+			return train;
+		},
+		addTrainSet: async (
+			p: Manager,
+			a: { session: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+
+			if (a.input.components) {
+				const movables = a.input.components.map((c: string) =>
+					session.movableLinkManager.get(c, true)
+				);
+				a.input.components = movables;
+			}
+
+			return await session.trainSetManager.create(
+				{
+					...a.input,
+					sessionId: session.id,
+					managerId: session.trainSetManager.id,
+				},
+				User.checkLink(c.user, session)
+			);
+		},
+		modTrainSet: async (
+			p: Manager,
+			a: { trainSet: string; input: any; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+
+			const trainSet = session.trainSetManager.get(a.trainSet, true);
+
+			await trainSet.modify(a.input, User.checkLink(c.user, session));
+			return trainSet;
+		},
+		addLocomotive: async (p: Manager, a: { input: any }, c: GQLContext) => {
+			if (!c.user) throw Errors.unauth();
+
+			const owner = p.userManager.get(a.input.owner, true);
+
+			return await p.movableManager.create(
+				{
+					...a.input,
+					ownerId: owner.id,
+					type: "LOCOMOTIVE",
+					managerId: p.movableManager.id,
+				},
+				c.user
+			);
+		},
+		modLocomotive: async (
+			p: Manager,
+			a: { input: any; locomotive: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const locomotive = p.movableManager.getLoco(a.locomotive, true);
+			locomotive.modify(a.input, c.user);
+			return locomotive;
+		},
+		linkLocomotive: async (
+			p: Manager,
+			a: { locomotive: string; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const locomotive = p.movableManager.getLoco(a.locomotive, true);
+			if (session.movableLinkManager.getByLocomotive(locomotive))
+				throw new TMError(
+					`EALREADYEXISTS`,
+					`This LocomotiveLink already exists!`
+				);
+
+			const locomotiveLink = session.movableLinkManager.create(
+				{
+					id: newUUID(),
+					managerId: session.movableLinkManager.id,
+					movableId: locomotive.id,
+					type: "locomotivelink",
+					sessionId: session.id,
+				},
+				User.checkLink(c.user, session)
+			);
+			return locomotiveLink;
+		},
+		addWagon: async (p: Manager, a: { input: any }, c: GQLContext) => {
+			if (!c.user) throw Errors.unauth();
+
+			const owner = p.userManager.get(a.input.owner, true);
+			return await p.movableManager.create(
+				{
+					...a.input,
+					type: "WAGON",
+					managerId: p.movableManager.id,
+					ownerId: owner.id,
+				},
+				c.user
+			);
+		},
+		modWagon: async (
+			p: Manager,
+			a: { input: any; wagon: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+
+			const wagon = p.movableManager.getWagon(a.wagon, true);
+			wagon.modify(a.input, c.user);
+			return wagon;
+		},
+		linkWagon: async (
+			p: Manager,
+			a: { wagon: string; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const wagon = p.movableManager.getWagon(a.wagon, true);
+			if (session.movableLinkManager.getByWagon(wagon))
+				throw new TMError(
+					`EALREADYEXISTS`,
+					`This WagonLink already exists!`
+				);
+
+			const wagonLink = session.movableLinkManager.create(
+				{
+					id: newUUID(),
+					managerId: session.movableLinkManager.id,
+					movableId: wagon.id,
+					type: "wagonlink",
+					sessionId: session.id,
+				},
+				User.checkLink(c.user, session)
+			);
+			return wagonLink;
+		},
+		addTimetable: async (
+			p: Manager,
+			a: { session: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+
+			return await session.timetableManager.create(
+				{
+					...a.input,
+					sessionId: session.id,
+					managerId: session.timetableManager.id,
+				},
+				User.checkLink(c.user, session)
+			);
+		},
+		modTimetable: async (
+			p: Manager,
+			a: { input: any; timetable: string; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const timetable = session.timetableManager.get(a.timetable, true);
+
+			await timetable.modify(a.input, User.checkLink(c.user, session));
+			return timetable;
+		},
+		activeTimetable: async (
+			p: Manager,
+			a: { timetable: string; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			User.checkPermission(c.user, "manage timetables", session);
+
+			const timetable = session.timetableManager.get(a.timetable, true);
+			return session.setActiveTimetable(timetable);
+		},
+		regenerateTimetableADS: async (
+			p: Manager,
+			a: { session: string; from?: Date },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			User.checkPermission(c.user, "manage timetables", session);
+
+			const gen = await session.aDSManager.regenerateADS();
+			return gen;
+		},
+		addTimetableEntry: async (
+			p: Manager,
+			a: { session: string; timetable: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const timetable = session.timetableManager.get(a.timetable, true);
+			const train = session.trainManager.get(a.input.train, true);
+			const stationLink = session.stationLinkManager.get(
+				a.input.stationLink,
+				true
+			);
+			const trackLink = stationLink.getTrackLink(a.input.trackLink, true);
+			const locomotiveLink = session.movableLinkManager.get(
+				a.input.locomotive,
+				true
+			);
+			const sets = (a.input.sets as string[]).map((id) =>
+				session.trainSetManager.get(id, true)
+			);
+
+			const entry = new TimetableEntry({
+				managerId: session.timetableManager.id,
+				sessionId: session.id,
+				ttId: timetable.id,
+				id: newUUID(),
+				locomotiveLinkId: locomotiveLink.id,
+				stationLinkId: stationLink.id,
+				trackLinkId: trackLink.id,
+				trainId: train.id,
+				duration: a.input.duration,
+				repeats: a.input.repeats,
+				start: a.input.start,
+				usedFrom: a.input.usedFrom,
+				setIds: sets.map((s) => s.id),
+				usedTill: a.input.usedTil,
+			});
+			timetable.addEntry(entry, User.checkLink(c.user, session));
+			return entry;
+		},
+		addArrDepSet: async (
+			p: Manager,
+			a: { session: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const train = session.trainManager.get(a.input.trainId, true);
+			const stationLink = session.stationLinkManager.get(
+				a.input.stationLinkId,
+				true
+			);
+			const trackLink = stationLink.getTrackLink(
+				a.input.trackLinkId,
+				true
+			);
+			const locomotiveLink = session.movableLinkManager.getLocoLink(
+				a.input.locomotiveLinkId,
+				true
+			);
+			const sets = (a.input.setIds as string[]).map((id) =>
+				session.trainSetManager.get(id, true)
+			);
+
+			const ads = await session.aDSManager.create({
+				scheduledArrival: a.input.scheduledArrival,
+				scheduledDeparture: a.input.scheduledDeparture,
+				arrivalDelay: a.input.arrivalDelay ?? 0,
+				departureDelay: a.input.departureDelay ?? 0,
+				actualArrival: a.input.actualArrival,
+				actualDeparture: a.input.actualDeparture,
+				id: newUUID(),
+				locomotiveLinkId: locomotiveLink.id,
+				managerId: session.aDSManager.id,
+				sessionId: session.id,
+				setIds: sets.map((s) => s.id),
+				stationLinkId: stationLink.id,
+				trackLinkId: trackLink.id,
+				trainId: train.id,
+				cancelledReason: a.input.cancelledReason,
+			});
+			return ads;
+		},
+		modArrDepSet: async (
+			p: Manager,
+			a: { session: string; arrdepset: string; input: any },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const ads = session.aDSManager.get(a.arrdepset, true);
+			ads.modify(a.input, User.checkLink(c.user, session));
+			return ads;
+		},
+		cancelArrDepSet: async (
+			p: Manager,
+			a: { session: string; arrdepset: string; reason: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const ads = session.aDSManager.get(a.arrdepset, true);
+			ads.cancel(a.reason, User.checkLink(c.user, session));
+			return ads;
+		},
+		delayArrDepSet: async (
+			p: Manager,
+			a: {
+				session: string;
+				arrdepset: string;
+				delay: number;
+				type: "ARRIVAL" | "DEPARTURE";
+			},
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			const ads = session.aDSManager.get(a.arrdepset, true);
+			ads.delay(a.delay, a.type, User.checkLink(c.user, session));
+			return ads;
+		},
+		addUser: async (p: Manager, a: { input: any }, c: GQLContext) => {
+			if (!c.user) throw Errors.unauth();
+
+			if (a.input.admin && !c.user.admin)
+				throw new TMError(
+					`EFORBIDDEN`,
+					`You are not authorized to grant Global Administrator permissions!`,
+					{ permission: "globaladmin" }
+				);
+
+			const sessionPermissions = (
+				a.input.permissions.session as
+					| {
+							session: string;
+							permissions: number;
+					  }[]
+					| undefined
+			)?.map((perm) => ({
+				session: p.get(perm.session, true),
+				permissions: perm.permissions,
+			}));
+
+			const passwordHash = a.input.password
+				? User.hashPassword(a.input.password)
+				: undefined;
+			return await p.userManager.create(
+				{
+					...a.input,
+					managerId: p.userManager.id,
+					passwordHash,
+					permissions: {
+						global: a.input.permissons.global,
+						session: sessionPermissions,
+					},
+				},
+				c.user
+			);
+		},
+		modUser: async (
+			p: Manager,
+			a: { input: any; user: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const user = p.userManager.get(a.user, true);
+			await user.modify(a.input, c.user);
+			return user;
+		},
+		addSession: async (p: Manager, a: { input: any }, c: GQLContext) => {
+			if (!c.user) throw Errors.unauth();
+
+			return await p.create({ ...a.input, ownerId: c.user.id }, c.user);
+		},
+		modSession: async (
+			p: Manager,
+			a: { input: any; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			await session.modify(a.input, c.user);
+			return session;
+		},
+
+		modSessionTime: async (
+			p: Manager,
+			a: { input: any; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			session.timeManager.modify(a.input, c.user);
+			return session.timeManager;
+		},
+		pauseSessionTime: async (
+			p: Manager,
+			a: { state: boolean; session: string },
+			c: GQLContext
+		) => {
+			if (!c.user) throw Errors.unauth();
+			const session = p.get(a.session, true);
+			session.timeManager.setRunning(
+				a.state,
+				User.checkLink(c.user, session)
+			);
+			return session.timeManager;
+		},
+	},
+};
+
+export { GQLContext, resolvers };

@@ -1,10 +1,9 @@
-import Movable from "./movable";
-import Resource, { ResourceOptions } from "./resource";
-import User from "./user";
+import { Resource, ResourceOptions, User, UserLink } from "../internal";
+import { MovableLink } from "./movable";
 
 interface TrainSetOptions extends ResourceOptions {
 	name: string;
-	components: Movable[];
+	components: MovableLink[];
 }
 
 interface TrainSetOptionsMetadata extends ResourceOptions {
@@ -22,7 +21,7 @@ class TrainSet extends Resource {
 		this.propertyChange("name", this.name);
 	}
 
-	public readonly components: Movable[];
+	public readonly components: MovableLink[];
 
 	constructor(options: TrainSetOptions) {
 		super("trainset", options);
@@ -31,7 +30,7 @@ class TrainSet extends Resource {
 		this.components = options.components;
 	}
 
-	async newComponents(components: Movable[], noSave = false) {
+	async newComponents(components: MovableLink[], noSave = false) {
 		this.components.length = 0;
 		this.components.push(...components);
 
@@ -42,9 +41,8 @@ class TrainSet extends Resource {
 		);
 	}
 
-	async modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage trains", this.realm))
-			throw new Error(`No permission`);
+	async modify(data: Record<string, unknown>, actor: UserLink) {
+		User.checkPermission(actor.user, "manage trains", this.session);
 		let modified = false;
 
 		// TODO: auditing
@@ -58,8 +56,8 @@ class TrainSet extends Resource {
 			data.components.every((c) => typeof c === "string")
 		) {
 			const components = data.components
-				.map((c) => this.realm.movableManager.get(c))
-				.filter((c) => c instanceof Movable);
+				.map((c) => this.session.movableLinkManager.get(c))
+				.filter((c) => c instanceof MovableLink) as MovableLink[];
 			if (components.length === data.components.length) {
 				await this.newComponents(components);
 				modified = true;
@@ -73,7 +71,7 @@ class TrainSet extends Resource {
 	metadata(): TrainSetOptionsMetadata {
 		return {
 			managerId: this.managerId,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			id: this.id,
 			name: this.name,
 			componentIds: this.components.map((c) => c.id),
@@ -100,5 +98,4 @@ class TrainSet extends Resource {
 	}
 }
 
-export default TrainSet;
-export { TrainSetOptions, TrainSetOptionsMetadata };
+export { TrainSet, TrainSetOptions, TrainSetOptionsMetadata };

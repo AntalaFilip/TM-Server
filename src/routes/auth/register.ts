@@ -1,9 +1,7 @@
 import { Response } from "express";
-import { TMAuthRequest } from "../../middleware/httpauth";
-import Client from "../../types/client";
-import User from "../../types/user";
+import { Manager, TMAuthRequest, User } from "../../internal";
 
-async function register(client: Client, req: TMAuthRequest, res: Response) {
+async function register(client: Manager, req: TMAuthRequest, res: Response) {
 	const authUser = req.auth;
 	if (!authUser) return res.status(500).send();
 	if (!authUser.hasPermission("manage users") && !authUser.admin)
@@ -48,8 +46,8 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 		username,
 		passwordHash: User.hashPassword(password),
 		managerId: client.userManager.id,
-		realmId: null,
-		email
+		sessionId: null,
+		email,
 	});
 	await client.db.redis.xadd(`audit`, "*", "create user", authUser.id);
 
@@ -58,4 +56,4 @@ async function register(client: Client, req: TMAuthRequest, res: Response) {
 
 	return res.status(201).send(toReturn);
 }
-export default register;
+export { register };

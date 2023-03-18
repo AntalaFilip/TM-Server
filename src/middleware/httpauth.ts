@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../helpers/jwt";
-import Client from "../types/client";
-import User from "../types/user";
+import { Manager } from "../internal";
+import { User } from "../internal";
 
 interface TMAuthRequest extends Request {
 	auth?: User;
@@ -10,7 +10,7 @@ interface TMAuthRequest extends Request {
 async function authenticate(
 	reject: boolean,
 	authRealm = "trainmanager",
-	client: Client,
+	client: Manager,
 	req: TMAuthRequest,
 	res: Response,
 	next: NextFunction
@@ -38,12 +38,10 @@ async function authenticate(
 			});
 
 	if (typeof vrf != "object" || !vrf.userId)
-		return res
-			.status(400)
-			.send({
-				message: "Invalid token",
-				error: { code: `EAUTHBADTOKEN` },
-			});
+		return res.status(400).send({
+			message: "Invalid token",
+			error: { code: `EAUTHBADTOKEN` },
+		});
 	const authUser =
 		client.userManager.get(vrf.userId) ??
 		(await client.userManager.fromResourceIdentifier(vrf.userId));
@@ -54,12 +52,10 @@ async function authenticate(
 			.header("WWW-Authenticate", `jwt realm="${authRealm}"`)
 			.send({ message: `Invalid user`, error: { code: `EAUTHBADUSER` } });
 	if (authUser.disabled)
-		return res
-			.status(403)
-			.send({
-				message: `This user is disabled!`,
-				error: { code: `EAUTHDISABLEDUSER` },
-			});
+		return res.status(403).send({
+			message: `This user is disabled!`,
+			error: { code: `EAUTHDISABLEDUSER` },
+		});
 
 	req.auth = authUser;
 

@@ -1,6 +1,6 @@
 // import c from "chalk";
 import c from "chalk";
-import Redis from "./redis";
+import { Redis } from "../internal";
 
 type LogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "FATAL";
 type NodeEnv = "PRODUCTION" | "DEVELOPMENT" | "TESTING";
@@ -96,4 +96,4 @@ class TMLogger {
 	}
 }
 
-export default TMLogger;
+export { TMLogger };

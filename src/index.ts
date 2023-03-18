@@ -1,69 +1,94 @@
-import Express from "express";
-import http from "http";
-import { createSIOServer } from "./helpers/sio";
-import { config as env } from "dotenv";
-import path from "path";
-import Client from "./types/client";
-import { ApolloServer } from "apollo-server-express";
-import { ApolloServerPluginDrainHttpServer } from "apollo-server-core";
-import createGQLResolvers from "./resolvers";
-import typeDefs from "./typedefs";
-import { verifyToken } from "./helpers/jwt";
-import TMLogger from "./helpers/logger";
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@apollo/server/express4";
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import { unwrapResolverError } from "@apollo/server/errors";
 import cors from "cors";
+import dotenv from "dotenv";
+import express, { json } from "express";
+import http from "http";
+import path from "path";
+import {
+	createSIOServer,
+	GQLContext,
+	Manager,
+	resolvers,
+	TMError,
+	TMLogger,
+	typeDefs,
+	verifyToken,
+} from "./internal";
 
 const envPath = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-env({ path: path.resolve(process.cwd(), envPath) });
+dotenv.config({ path: path.resolve(process.cwd(), envPath) });
 
 const logger = new TMLogger(`STARTUP`);
 
 async function main() {
 	logger.debug(`Creating HTTP and WS/SIO services...`);
-	const app = Express();
-	app.use(cors({ origin: "http://localhost:3000" }));
+	const app = express();
+	app.use(
+		cors({
+			origin: [
+				"http://localhost:3000",
+				"https://studio.apollographql.com",
+			],
+		})
+	);
 	const server = http.createServer(app);
 
 	// Make a new Socket.IO Server instance and bind it to the HTTP server
 	const io = createSIOServer(server);
 
 	logger.debug(`Creating backend services...`);
-	// This really should not be called a Client, but whatever...
-	const client = new Client({ express: app, http: server, io });
+	const manager = new Manager({ express: app, http: server, io });
 
-	await client.ready;
-
-	logger.debug(`Creating GQL resolvers...`);
-	const resolvers = createGQLResolvers(client);
-
+	await manager.ready;
 	logger.debug(`Creating Apollo Server...`);
-	const apollo = new ApolloServer({
+	const apollo = new ApolloServer<GQLContext>({
 		csrfPrevention: true,
 		cache: "bounded",
 		plugins: [ApolloServerPluginDrainHttpServer({ httpServer: server })],
 		resolvers,
 		typeDefs,
-		context: async ({ req }) => {
-			const authHeader =
-				req.header("Authorization") ??
-				(req.cookies["authToken"] as string) ??
-				"";
+		rootValue: manager,
+		formatError: (fe, error) => {
+			const err = unwrapResolverError(error);
+			if (err instanceof TMError) {
+				return {
+					...fe,
+					message: err.message,
+					extensions: {
+						code: err.code,
+						...err.extension,
+					},
+				};
+			}
 
-			const token = authHeader.split(" ")[1];
-
-			const vrf = verifyToken(token);
-			const user = client.userManager.get(vrf?.userId);
-
-			return { user };
+			return fe;
 		},
 	});
 
 	logger.debug(`Starting servers, applying middleware...`);
 	await apollo.start();
-	apollo.applyMiddleware({
-		app,
-		cors: { origin: "http://localhost:3000" },
-		path: "/api/graphql",
-	});
+	app.use(
+		"/api/graphql",
+		json(),
+		expressMiddleware(apollo, {
+			context: async ({ req }) => {
+				const authHeader =
+					req.header("Authorization") ??
+					(req.cookies["authToken"] as string) ??
+					"";
+
+				const token = authHeader.split(" ")[1];
+
+				const vrf = verifyToken(token);
+				const user = manager.userManager.get(vrf?.userId);
+
+				return { user };
+			},
+		})
+	);
 
 	io.on("connection", (socket) => {
 		const auth = socket.handshake.headers.cookie
@@ -75,7 +100,7 @@ async function main() {
 		const data = verifyToken(auth.split(" ")[1]);
 		if (!data || typeof data.userId != "string") return socket.disconnect();
 
-		socket.data.user = client.userManager.get(data.userId);
+		socket.data.user = manager.userManager.get(data.userId);
 	});
 
 	await new Promise<void>((resolve) =>
@@ -88,7 +113,7 @@ async function main() {
 		`Listening on ${addr?.address}:${addr?.port}`
 	);
 
-	return { client, apollo };
+	return { client: manager, apollo };
 }
 
 logger.info(`Starting TrainManager/core`);

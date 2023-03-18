@@ -1,7 +1,10 @@
-import { ForbiddenError } from "apollo-server-core";
-import TimetableEntry from "./entry";
-import Resource, { ResourceOptions } from "./resource";
-import User from "./user";
+import {
+	Resource,
+	ResourceOptions,
+	TimetableEntry,
+	User,
+	UserLink,
+} from "../internal";
 
 interface TimetableOptions extends ResourceOptions {
 	entries?: TimetableEntry[];
@@ -29,7 +32,7 @@ class Timetable extends Resource {
 	}
 
 	public get inUse() {
-		return this.realm.activeTimetable === this;
+		return this.session.activeTimetable === this;
 	}
 	public get checksPassing() {
 		return this.runChecks();
@@ -39,9 +42,9 @@ class Timetable extends Resource {
 	public get nowEntries() {
 		return this.entries.filter(
 			(e) =>
-				e.usedFrom.getTime() <= this.realm.timeManager.trueMs &&
+				e.usedFrom.getTime() <= this.session.timeManager.trueMs &&
 				(e.usedTill?.getTime() ?? Number.POSITIVE_INFINITY) >
-					this.realm.timeManager.trueMs
+					this.session.timeManager.trueMs
 		);
 	}
 
@@ -58,27 +61,22 @@ class Timetable extends Resource {
 	 * @returns boolean indicating validity
 	 */
 	runChecks() {
+		// TODO: finsh
 		if (this.entries.length === 0) return false;
-		if (!this.entries.every((e) => e.times.length > 0)) return false;
 
 		return true;
 	}
 
-	addEntry(entry: TimetableEntry, actor?: User) {
-		if (actor && !actor.hasPermission(`manage timetables`, this.realm))
-			throw new ForbiddenError(`No permission`, {
-				tmCode: `ENOPERM`,
-				permission: `manage timetables`,
-			});
+	addEntry(entry: TimetableEntry, actor?: UserLink) {
+		actor && User.checkPermission(actor.user, "manage timetables");
 		if (this.entries.includes(entry)) return false;
 
 		this.entries.push(entry);
 		return true;
 	}
 
-	async modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage timetables", this.realm))
-			throw new Error(`No permission`);
+	async modify(data: Record<string, unknown>, actor: UserLink) {
+		User.checkPermission(actor.user, "manage timetables");
 		let modified = false;
 
 		// TODO: auditing
@@ -99,7 +97,7 @@ class Timetable extends Resource {
 	metadata(): TimetableOptions {
 		return {
 			managerId: this.managerId,
-			realmId: this.realmId,
+			sessionId: this.sessionId,
 			id: this.id,
 			name: this.name,
 			genCount: this.genCount,
@@ -132,5 +130,4 @@ class Timetable extends Resource {
 	}
 }
 
-export default Timetable;
-export { TimetableOptions };
+export { Timetable, TimetableOptions };

@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
-import { signData } from "../../helpers/jwt";
-import Client from "../../types/client";
+import { Manager, signData } from "../../internal";
 
-async function login(client: Client, req: Request, res: Response) {
+async function login(client: Manager, req: Request, res: Response) {
 	const data = req.body;
 	if (!data) return res.status(400).send(`Missing body!`);
 
@@ -52,4 +51,4 @@ async function login(client: Client, req: Request, res: Response) {
 		.send({ token, message: `Logged in succesfully!` });
 }
 
-export default login;
+export { login };

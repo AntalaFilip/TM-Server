@@ -1,25 +1,82 @@
-import Movable, { MovableOptions } from "./movable";
-import User from "./user";
+import {
+	Movable,
+	MovableLink,
+	MovableLinkOptions,
+	MovableOptions,
+	TMError,
+	User,
+	UserLink,
+} from "../internal";
 
-interface LocomotiveOptions extends MovableOptions {
-	controller?: User;
+interface LocomotiveLinkOptions extends MovableLinkOptions {
+	controllerId?: string;
+	locomotiveId: string;
 }
 
 class Locomotive extends Movable {
-	constructor(options: LocomotiveOptions) {
+	public override readonly type = "LOCOMOTIVE";
+	constructor(options: MovableOptions) {
 		super("LOCOMOTIVE", options);
-
-		// TODO: sanity check
-		this._controller = options.controller;
+	}
+	metadata(): MovableOptions {
+		return {
+			couplerType: this.couplerType,
+			model: this.model,
+			length: this.length,
+			maxSpeed: this.maxSpeed,
+			name: this.name,
+			id: this.id,
+			sessionId: this.sessionId,
+			managerId: this.managerId,
+			type: this.type,
+			ownerId: this.ownerId,
+		};
 	}
 
-	private _controller?: User;
+	publicMetadata() {
+		return this.metadata();
+	}
+
+	fullMetadata() {
+		return this.metadata();
+	}
+
+	modify(data: Record<string, unknown>, actor: User) {
+		User.checkPermission(actor, "manage movables");
+
+		return this._modify(data, actor);
+	}
+
+	static is(movable: Movable): movable is Locomotive {
+		return movable instanceof this;
+	}
+}
+
+class LocomotiveLink extends MovableLink {
+	public override readonly type = "locomotivelink";
+	public readonly locomotiveId: string;
+	public get locomotive() {
+		const l = this.session.client.movableManager.getLoco(this.locomotiveId);
+		if (!l) throw new TMError(`EINTERNAL`);
+		return l;
+	}
+	constructor(options: LocomotiveLinkOptions) {
+		super(`locomotivelink`, options);
+
+		this.locomotiveId = options.locomotiveId;
+	}
+
+	private _controllerId?: string;
+	public get controllerId() {
+		return this._controllerId;
+	}
 	public get controller() {
-		return this._controller;
+		if (!this.controllerId) return undefined;
+		return this.session.userLinkManager.get(this.controllerId);
 	}
-	private set controller(ctl: User | undefined) {
-		this._controller = ctl;
-		const trueTimestamp = this.manager.realm.timeManager.trueMs;
+	private set controller(ctl: UserLink | undefined) {
+		this._controllerId = ctl?.id;
+		const trueTimestamp = this.session.timeManager.trueMs;
 		this.manager.db.redis.xadd(
 			this.manager.key(`${this.id}:controllers`),
 			"*",
@@ -34,78 +91,36 @@ class Locomotive extends Movable {
 	}
 
 	public get currentTrain() {
-		return this.realm.trainManager.trains.find(
-			(t) => t.locomotive === this
+		return this.session.trainManager.trains.find(
+			(t) => t.locomotiveLink === this
 		);
 	}
 
-	metadata(): LocomotiveOptions {
+	modify(): boolean {
+		return false;
+	}
+
+	metadata(): LocomotiveLinkOptions {
 		return {
-			couplerType: this.couplerType,
-			model: this.model,
-			currentLocation: this.currentLocation && {
-				stationId: this.currentLocation?.station?.id,
-				trackId: this.currentLocation?.track?.id,
-			},
-			length: this.length,
-			maxSpeed: this.maxSpeed,
-			name: this.name,
 			id: this.id,
-			realmId: this.realmId,
+			locomotiveId: this.locomotiveId,
 			managerId: this.managerId,
+			movableId: this.movableId,
+			sessionId: this.sessionId,
+			controllerId: this._controllerId,
+			currentLocation: this.currentLocation && {
+				stationLinkId: this.currentLocation.stationLink.id,
+				trackLinkId: this.currentLocation.trackLink?.id,
+			},
 			type: this.type,
-			ownerId: this.ownerId,
 		};
 	}
-
 	publicMetadata() {
-		return {
-			...this.metadata(),
-			controllerId: this.controller?.id,
-		};
+		return this.metadata();
 	}
-
 	fullMetadata() {
-		return {
-			...this.metadata(),
-			currentLocation:
-				this.currentLocation &&
-				Object.fromEntries(
-					Object.entries(this.currentLocation).map(([k, v]) => [
-						k,
-						v.publicMetadata(),
-					])
-				),
-			controller: this.controller?.publicMetadata(),
-		};
-	}
-
-	modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage movables", this.realm))
-			throw new Error(`No permission`);
-		let modified = false;
-
-		// TODO: auditing
-		if (
-			typeof data.controllerId === "string" &&
-			this.realm.client.userManager.get(data.controllerId)
-		) {
-			this.controller = this.realm.client.userManager.get(
-				data.controllerId
-			);
-			modified = true;
-		}
-
-		const mdf = this._modify(data, actor);
-
-		if (!modified && !mdf) return false;
-
-		return true;
-	}
-
-	static is(movable: Movable): movable is Locomotive {
-		return movable instanceof this;
+		return this.metadata();
 	}
 }
 
-export default Locomotive;
+export { Locomotive, LocomotiveLink, LocomotiveLinkOptions };

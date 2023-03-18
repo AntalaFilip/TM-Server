@@ -1,9 +1,8 @@
-import Express from "express";
-import Client from "../types/client";
-import createAuthRouter from "./auth";
 import cookieParser from "cookie-parser";
+import Express from "express";
+import { createAuthRouter, Manager } from "../internal";
 
-function createIndexRouter(client: Client) {
+function createIndexRouter(client: Manager) {
 	const router = Express.Router();
 	router.use(cookieParser());
 
@@ -14,4 +13,4 @@ function createIndexRouter(client: Client) {
 	return router;
 }
 
-export default createIndexRouter;
+export { createIndexRouter };

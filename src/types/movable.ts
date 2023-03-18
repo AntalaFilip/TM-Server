@@ -1,18 +1,23 @@
-import Realm from "./realm";
-import Resource, { ResourceOptions } from "./resource";
-import Station from "./station";
-import StationTrack from "./track";
-import Train from "./train";
-import User from "./user";
+import {
+	MovableManager,
+	Resource,
+	ResourceOptions,
+	Session,
+	StationLink,
+	StationTrackLink,
+	TMError,
+	Train,
+	User,
+} from "../internal";
 
 type MovableLocation = {
-	station: Station;
-	track?: StationTrack;
+	stationLink: StationLink;
+	trackLink?: StationTrackLink;
 };
 
 type MovableLocationMeta = {
-	stationId: string;
-	trackId?: string;
+	stationLinkId: string;
+	trackLinkId?: string;
 };
 
 function checkMovableLocationMetaValidity(
@@ -27,35 +32,42 @@ function checkMovableLocationMetaValidity(
 
 function checkMovableLocationMetaExistence(
 	toCheck: Record<string, unknown>,
-	realm: Realm
+	realm: Session
 ): toCheck is MovableLocation {
 	return (
 		checkMovableLocationMetaValidity(toCheck) &&
 		toCheck !== undefined &&
-		Boolean(realm.stationManager.get(toCheck.stationId)) &&
-		(!toCheck.trackId ||
+		Boolean(realm.client.stationManager.get(toCheck.stationLinkId)) &&
+		(!toCheck.trackLinkId ||
 			Boolean(
-				realm.stationManager
-					.get(toCheck.stationId)
-					?.tracks.find((t) => t.id === toCheck.trackId)
+				realm.client.stationManager
+					.get(toCheck.stationLinkId)
+					?.tracks.find((t) => t.id === toCheck.trackLinkId)
 			))
 	);
 }
 
 type MovableType = "WAGON" | "LOCOMOTIVE";
 
-interface MovableOptions extends ResourceOptions {
+type MovableLinkType = "wagonlink" | "locomotivelink";
+
+interface MovableOptions extends ResourceOptions<MovableManager> {
 	maxSpeed?: number;
 	length?: number;
 	couplerType: string;
-	currentLocation?: MovableLocationMeta;
 	model: string;
 	name?: string;
 	type: MovableType;
 	ownerId?: string;
 }
 
-abstract class Movable extends Resource {
+interface MovableLinkOptions extends ResourceOptions {
+	currentLocation?: MovableLocationMeta;
+	movableId: string;
+	type: MovableLinkType;
+}
+
+abstract class Movable extends Resource<MovableManager> {
 	public override readonly type: MovableType;
 
 	private _model: string;
@@ -98,20 +110,6 @@ abstract class Movable extends Resource {
 		this.propertyChange("couplerType", this.couplerType);
 	}
 
-	private _currentLocation?: MovableLocation;
-	/** The Station in which the object is currently located */
-	public get currentLocation() {
-		return this._currentLocation;
-	}
-	private set currentLocation(location: MovableLocation | undefined) {
-		// there can't be a track without a station as tracks are tied to stations :)
-		if (location && !location.station && location.track)
-			location.track = undefined;
-
-		this._currentLocation = location;
-		this.propertyChange("currentLocation", this.currentLocation);
-	}
-
 	private _name?: string;
 	public get name() {
 		return this._name;
@@ -131,11 +129,9 @@ abstract class Movable extends Resource {
 	}
 	public get owner(): User | undefined {
 		return this.ownerId
-			? this.realm.client.userManager.get(this.ownerId)
+			? this.manager.client.userManager.get(this.ownerId)
 			: undefined;
 	}
-
-	abstract currentTrain?: Train;
 
 	constructor(type: MovableType, options: MovableOptions) {
 		super(type, options);
@@ -147,23 +143,11 @@ abstract class Movable extends Resource {
 		this._couplerType = options.couplerType;
 		this._ownerId = options.ownerId;
 
-		const curSt =
-			options.currentLocation &&
-			this.realm.stationManager.get(options.currentLocation.stationId);
-		this._currentLocation = curSt &&
-			options.currentLocation && {
-				station: curSt,
-				track: options.currentLocation.trackId
-					? curSt.tracks.get(options.currentLocation.trackId)
-					: undefined,
-			};
-
 		this._name = options.name;
 	}
 
 	_modify(data: Record<string, unknown>, actor: User) {
-		if (!actor.hasPermission("manage movables", this.realm))
-			throw new Error(`No permission`);
+		User.checkPermission(actor, "manage movables");
 		let modified = false;
 
 		// TODO: auditing
@@ -188,29 +172,6 @@ abstract class Movable extends Resource {
 			this.couplerType = data.couplerType;
 			modified = true;
 		}
-		const stat =
-			typeof data.currentStationId === "string"
-				? this.realm.stationManager.get(data.currentStationId)
-				: undefined;
-		if (stat) {
-			this.currentLocation = {
-				...this.currentLocation,
-				station: stat,
-			};
-			modified = true;
-		}
-		if (
-			typeof data.currentTrackId === "string" &&
-			this.currentLocation?.station.tracks.get(data.currentTrackId)
-		) {
-			this.currentLocation = {
-				...this.currentLocation,
-				track: this.currentLocation.station.tracks.get(
-					data.currentTrackId
-				),
-			};
-			modified = true;
-		}
 
 		if (!modified) return false;
 
@@ -228,11 +189,68 @@ abstract class Movable extends Resource {
 	}
 }
 
-export default Movable;
+abstract class MovableLink extends Resource {
+	public override readonly type: MovableLinkType;
+	public readonly movableId: string;
+	public get movable() {
+		const m = this.session.client.movableManager.get(this.movableId);
+		if (!m) throw new TMError(`EINTERNAL`);
+		return m;
+	}
+
+	private _currentLocation?: MovableLocation;
+	/** The Station in which the object is currently located */
+	public get currentLocation() {
+		return this._currentLocation;
+	}
+	private set currentLocation(location: MovableLocation | undefined) {
+		// there can't be a track without a station as tracks are tied to stations :)
+		if (location && !location.stationLink && location.trackLink)
+			location.trackLink = undefined;
+
+		this._currentLocation = location;
+		this.propertyChange("currentLocation", this.currentLocation);
+	}
+
+	abstract currentTrain?: Train;
+
+	constructor(type: MovableLinkType, options: MovableLinkOptions) {
+		super(type, options);
+		this.type = options.type;
+
+		this.movableId = options.movableId;
+
+		const curSt =
+			options.currentLocation &&
+			this.session.stationLinkManager.get(
+				options.currentLocation.stationLinkId
+			);
+		this._currentLocation = curSt &&
+			options.currentLocation && {
+				stationLink: curSt,
+				trackLink: options.currentLocation.trackLinkId
+					? curSt.trackLinks.get(options.currentLocation.trackLinkId)
+					: undefined,
+			};
+	}
+
+	override async save(): Promise<boolean> {
+		await this.manager.db.redis.hset(this.managerId, [
+			this.id,
+			JSON.stringify(this.metadata()),
+		]);
+		return true;
+	}
+}
+
 export {
+	Movable,
 	MovableOptions,
 	MovableLocation,
 	checkMovableLocationMetaExistence,
 	checkMovableLocationMetaValidity,
 	MovableLocationMeta,
+	MovableLink,
+	MovableLinkOptions,
+	MovableLinkType,
 };
