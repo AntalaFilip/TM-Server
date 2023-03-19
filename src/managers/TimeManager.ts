@@ -39,7 +39,7 @@ class TimeManager extends BaseManager {
 	}
 
 	public get canRun() {
-		return this.session.sessionState === "READY";
+		return this.session.state === "READY";
 	}
 
 	private _running = false;

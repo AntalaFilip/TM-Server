@@ -44,7 +44,7 @@ class ADSManager extends SessionResourceManager {
 	}
 
 	async regenerateADS(): Promise<ArrDepSet[]> {
-		const prevState = this.session.sessionState;
+		const prevState = this.session.state;
 		const timetable = this.session.activeTimetable;
 		if (!timetable) throw new TMError(`ENOACTIVETIMETABLE`);
 		// Automatically pauses and locks time and disabled interactions that could break this process

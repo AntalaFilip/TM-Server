@@ -56,12 +56,12 @@ class Session extends Resource<null> {
 		this.propertyChange(`name`, name);
 	}
 
-	private _sessionState: SessionState;
-	public get sessionState() {
-		return this._sessionState;
+	private _state: SessionState;
+	public get state() {
+		return this._state;
 	}
-	private set sessionState(state: SessionState) {
-		this._sessionState = this.sessionState;
+	private set state(state: SessionState) {
+		this._state = this.state;
 		this.propertyChange("sessionState", state);
 	}
 
@@ -109,7 +109,7 @@ class Session extends Resource<null> {
 			`SESSION:${this.id}`,
 			`SESSION:${this.shortId}`
 		);
-		this._sessionState = options.sessionState;
+		this._state = options.sessionState;
 
 		this.timeManager = new TimeManager(this);
 		this.movableLinkManager = new MovableLinkManager(this);
@@ -162,7 +162,7 @@ class Session extends Resource<null> {
 	async setActiveTimetable(timetable: Timetable): Promise<boolean> {
 		if (!timetable.runChecks()) return false;
 		this.logger.verbose(`Setting active timetable (${timetable.id})`);
-		const prevState = this.sessionState;
+		const prevState = this.state;
 		this.setSessionState("SYSTEM_SETUP");
 		this.activeTimetableId = timetable.id;
 		await this.aDSManager.regenerateADS();
@@ -175,7 +175,7 @@ class Session extends Resource<null> {
 		actor && User.checkPermission(actor.user, "manage sessions", this);
 
 		if (
-			(this.sessionState === "SYSTEM_SETUP" ||
+			(this.state === "SYSTEM_SETUP" ||
 				state === "SYSTEM_SETUP") &&
 			actor
 		) {
@@ -189,7 +189,7 @@ class Session extends Resource<null> {
 			this.timeManager.setRunning(false);
 		}
 
-		this._sessionState = state;
+		this._state = state;
 	}
 
 	metadata(): SessionOptions {
@@ -200,7 +200,7 @@ class Session extends Resource<null> {
 			id: this.id,
 			ownerId: this.ownerId,
 			activeTimetableId: this.activeTimetableId,
-			sessionState: this.sessionState,
+			sessionState: this.state,
 		};
 	}
 
