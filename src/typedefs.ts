@@ -465,9 +465,15 @@ const typeDefs = `#graphql
 		name: String!
 		owner: User!
 		activeTimetable: Timetable
+		state: SessionState!
 	}
 	input SessionInput {
 		name: String!
+	}
+	enum SessionState {
+		READY
+		SETUP
+		SYSTEM_SETUP
 	}
 
 	type SessionTime {
