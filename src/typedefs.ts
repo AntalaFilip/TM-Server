@@ -4,6 +4,7 @@ const typeDefs = `#graphql
 	type Query {
 		stations: [Station]
 		station(id: ID!): Station
+		stationLinks(session: ID!): [StationLink]
 		stationLink(id: ID!, session: ID!): StationLink
 
 		trains(session: ID!): [Train]
@@ -14,10 +15,12 @@ const typeDefs = `#graphql
 
 		locomotives: [Locomotive]
 		locomotive(id: ID!): Locomotive
+		locomotiveLinks(session: ID!): [LocomotiveLink]
 		locomotiveLink(id: ID!, session: ID!): LocomotiveLink
 
 		wagons: [Wagon]
 		wagon(id: ID!): Wagon
+		wagonLinks(session: ID!): [WagonLink]
 		wagonLink(id: ID!, session: ID!): WagonLink
 
 		timetables(session: ID!): [Timetable]
@@ -28,11 +31,13 @@ const typeDefs = `#graphql
 
 		users(disabled: Boolean): [User]!
 		user(id: ID!): User
+		userLinks(session: ID!): [UserLink]
+		userLink(session: ID!, id: ID!): UserLink
 
 		sessions: [Session]!
 		session(id: ID!): Session
 
-		actions(session: ID!): [Action]!
+		actions(session: ID!): [Action]
 		action(session: ID!, id: ID!): Action
 
 		time(session: ID!): SessionTime

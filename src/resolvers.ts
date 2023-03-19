@@ -3,6 +3,7 @@ import {
 	Errors,
 	firstCapital,
 	Locomotive,
+	LocomotiveLink,
 	Manager,
 	Movable,
 	newUUID,
@@ -14,6 +15,7 @@ import {
 	TrainState,
 	User,
 	Wagon,
+	WagonLink,
 } from "./internal";
 
 type GQLContext = {
@@ -52,6 +54,11 @@ const resolvers = {
 		station: async (p: Manager, a: { id: string }) => {
 			return p.stationManager.get(a.id);
 		},
+		stationLinks: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p.get(a.session)?.stationLinkManager.links.values() ?? []
+			);
+		},
 		stationLink: async (p: Manager, a: { id: string; session: string }) => {
 			return p.get(a.session)?.stationLinkManager.get(a.id);
 		},
@@ -84,6 +91,16 @@ const resolvers = {
 		locomotive: async (p: Manager, a: { id: string }) => {
 			return p.movableManager.getLoco(a.id);
 		},
+		locomotiveLinks: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p
+					.get(a.session)
+					?.movableLinkManager.links.filter(
+						(l) => l instanceof LocomotiveLink
+					)
+					.values() ?? []
+			);
+		},
 		locomotiveLink: async (
 			p: Manager,
 			a: { id: string; session: string }
@@ -100,6 +117,16 @@ const resolvers = {
 		},
 		wagon: async (p: Manager, a: { id: string }) => {
 			return p.movableManager.getWagon(a.id);
+		},
+		wagonLinks: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p
+					.get(a.session)
+					?.movableLinkManager.links.filter(
+						(l) => l instanceof WagonLink
+					)
+					.values() ?? []
+			);
 		},
 		wagonLink: async (p: Manager, a: { id: string; session: string }) => {
 			return p.get(a.session)?.movableLinkManager.getWagonLink(a.id);
@@ -126,6 +153,14 @@ const resolvers = {
 		},
 		user: async (p: Manager, a: { id: string }) => {
 			return p.userManager.get(a.id);
+		},
+		userLinks: async (p: Manager, a: { session: string }) => {
+			return Array.from(
+				p.get(a.session)?.userLinkManager.links.values() ?? []
+			);
+		},
+		userLink: async (p: Manager, a: { session: string; id: string }) => {
+			return p.get(a.session)?.userLinkManager.get(a.id);
 		},
 
 		sessions: async (p: Manager) => {
