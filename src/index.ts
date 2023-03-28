@@ -84,6 +84,12 @@ async function main() {
 
 				const vrf = verifyToken(token);
 				const user = manager.userManager.get(vrf?.userId);
+				if (user?.disabled)
+					throw new TMError(
+						"EACCDISABLED",
+						"Your account has been disabled!",
+						{ userId: user.id }
+					);
 
 				return { user };
 			},
@@ -100,7 +106,14 @@ async function main() {
 		const data = verifyToken(auth.split(" ")[1]);
 		if (!data || typeof data.userId != "string") return socket.disconnect();
 
-		socket.data.user = manager.userManager.get(data.userId);
+		const user = manager.userManager.get(data.userId);
+		if (user?.disabled)
+			throw new TMError(
+				"EACCDISABLED",
+				"Your account has been disabled!",
+				{ userId: user.id }
+			);
+		socket.data.user = user;
 	});
 
 	await new Promise<void>((resolve) =>
